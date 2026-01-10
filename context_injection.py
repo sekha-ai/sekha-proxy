@@ -44,6 +44,10 @@ Use this context to provide more accurate, informed responses. Reference specifi
         else:
             return [context_message] + original_messages
 
+    def format_context_for_llm(self, messages: List[Dict[str, Any]]) -> str:
+        """Public method for formatting context (used by tests)."""
+        return self._format_context_for_llm(messages)
+
     def _format_context_for_llm(self, messages: List[Dict[str, Any]]) -> str:
         """
         Format messages with citations for LLM consumption.
@@ -133,6 +137,7 @@ Date: {timestamp}
         return {
             "auto_captured": True,
             "context_used": len(context_used) if context_used else 0,
+            "context_used_count": len(context_used) if context_used else 0,  # For test compatibility
             "llm_provider": llm_provider,
             "context_conversations": [
                 {
