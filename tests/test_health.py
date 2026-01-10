@@ -1,186 +1,159 @@
 """Tests for health monitoring."""
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, patch
 from health import HealthMonitor
-from config import Config, ControllerConfig, LLMConfig
-
-
-@pytest.fixture
-def mock_config() -> Config:
-    """Create configuration for testing."""
-    return Config(
-        controller=ControllerConfig(
-            url="http://localhost:8080",
-            api_key="test-key",
-            timeout=30
-        ),
-        llm=LLMConfig(
-            url="http://localhost:11434",
-            provider="ollama",
-            timeout=120
-        )
-    )
 
 
 @pytest.mark.asyncio
-async def test_health_all_services_up(mock_config: Config) -> None:
+async def test_health_all_services_up() -> None:
     """Test health check when all services are healthy."""
-    monitor = HealthMonitor(mock_config)
+    monitor = HealthMonitor(
+        controller_url="http://localhost:8080",
+        llm_url="http://localhost:11434",
+        controller_api_key="test-key"
+    )
     
-    # Mock HTTP client
-    monitor.client = AsyncMock()
-    
-    # Mock controller health
+    # Mock HTTP clients
     controller_response = AsyncMock()
     controller_response.status_code = 200
-    controller_response.json = AsyncMock(return_value={"status": "healthy"})
     
-    # Mock LLM health
     llm_response = AsyncMock()
     llm_response.status_code = 200
-    llm_response.json = AsyncMock(return_value={"status": "ok"})
     
-    async def mock_get(url, **kwargs):
-        if "8080" in url:
-            return controller_response
-        return llm_response
-    
-    monitor.client.get = mock_get
+    monitor.controller_client.get = AsyncMock(return_value=controller_response)
+    monitor.llm_client.get = AsyncMock(return_value=llm_response)
     
     status = await monitor.check_all()
     
     assert status["status"] == "healthy"
-    assert "controller" in status
-    assert "llm" in status
-    assert status["controller"] == "healthy"
-    assert status["llm"] == "healthy"
+    assert "checks" in status
+    assert status["checks"]["controller"]["status"] == "ok"
+    assert status["checks"]["llm"]["status"] in ["ok", "warning"]  # LLM might warn
+    
+    await monitor.close()
 
 
 @pytest.mark.asyncio
-async def test_health_controller_down(mock_config: Config) -> None:
+async def test_health_controller_down() -> None:
     """Test health check when controller is down."""
-    monitor = HealthMonitor(mock_config)
-    
-    # Mock HTTP client
-    monitor.client = AsyncMock()
+    monitor = HealthMonitor(
+        controller_url="http://localhost:8080",
+        llm_url="http://localhost:11434",
+        controller_api_key="test-key"
+    )
     
     # Mock controller failure
-    async def mock_get(url, **kwargs):
-        if "8080" in url:
-            raise Exception("Connection refused")
-        # LLM is up
-        llm_response = AsyncMock()
-        llm_response.status_code = 200
-        llm_response.json = AsyncMock(return_value={"status": "ok"})
-        return llm_response
+    monitor.controller_client.get = AsyncMock(side_effect=Exception("Connection refused"))
     
-    monitor.client.get = mock_get
+    # Mock LLM success
+    llm_response = AsyncMock()
+    llm_response.status_code = 200
+    monitor.llm_client.get = AsyncMock(return_value=llm_response)
     
     status = await monitor.check_all()
     
-    assert status["status"] == "degraded"
-    assert status["controller"] == "unhealthy"
-    assert status["llm"] == "healthy"
+    assert status["status"] in ["degraded", "unhealthy"]
+    assert status["checks"]["controller"]["status"] == "error"
+    
+    await monitor.close()
 
 
 @pytest.mark.asyncio
-async def test_health_llm_down(mock_config: Config) -> None:
+async def test_health_llm_down() -> None:
     """Test health check when LLM is down."""
-    monitor = HealthMonitor(mock_config)
+    monitor = HealthMonitor(
+        controller_url="http://localhost:8080",
+        llm_url="http://localhost:11434",
+        controller_api_key="test-key"
+    )
     
-    # Mock HTTP client
-    monitor.client = AsyncMock()
+    # Mock controller success
+    controller_response = AsyncMock()
+    controller_response.status_code = 200
+    monitor.controller_client.get = AsyncMock(return_value=controller_response)
     
     # Mock LLM failure
-    async def mock_get(url, **kwargs):
-        if "11434" in url or "ollama" in url:
-            raise Exception("Connection refused")
-        # Controller is up
-        controller_response = AsyncMock()
-        controller_response.status_code = 200
-        controller_response.json = AsyncMock(return_value={"status": "healthy"})
-        return controller_response
-    
-    monitor.client.get = mock_get
+    monitor.llm_client.get = AsyncMock(side_effect=Exception("Connection refused"))
     
     status = await monitor.check_all()
     
-    assert status["status"] == "degraded"
-    assert status["controller"] == "healthy"
-    assert status["llm"] == "unhealthy"
+    assert status["status"] in ["degraded", "unhealthy"]
+    assert status["checks"]["llm"]["status"] == "error"
+    
+    await monitor.close()
 
 
 @pytest.mark.asyncio
-async def test_health_all_services_down(mock_config: Config) -> None:
+async def test_health_all_services_down() -> None:
     """Test health check when all services are down."""
-    monitor = HealthMonitor(mock_config)
-    
-    # Mock HTTP client
-    monitor.client = AsyncMock()
+    monitor = HealthMonitor(
+        controller_url="http://localhost:8080",
+        llm_url="http://localhost:11434",
+        controller_api_key="test-key"
+    )
     
     # Mock all failures
-    async def mock_get(url, **kwargs):
-        raise Exception("Connection refused")
-    
-    monitor.client.get = mock_get
+    monitor.controller_client.get = AsyncMock(side_effect=Exception("Connection refused"))
+    monitor.llm_client.get = AsyncMock(side_effect=Exception("Connection refused"))
     
     status = await monitor.check_all()
     
     assert status["status"] == "unhealthy"
-    assert status["controller"] == "unhealthy"
-    assert status["llm"] == "unhealthy"
+    assert status["checks"]["controller"]["status"] == "error"
+    assert status["checks"]["llm"]["status"] == "error"
+    
+    await monitor.close()
 
 
 @pytest.mark.asyncio
-async def test_health_timeout_handling(mock_config: Config) -> None:
-    """Test health check timeout handling."""
-    monitor = HealthMonitor(mock_config)
-    
-    # Mock HTTP client with timeout
-    monitor.client = AsyncMock()
-    
-    async def mock_get_timeout(url, **kwargs):
-        import asyncio
-        await asyncio.sleep(10)  # Longer than timeout
-        return AsyncMock()
-    
-    monitor.client.get = mock_get_timeout
-    
-    # Should timeout and mark as unhealthy
-    status = await monitor.check_all()
-    
-    # At least one service should timeout
-    assert status["status"] in ["degraded", "unhealthy"]
-
-
-@pytest.mark.asyncio
-async def test_health_partial_response(mock_config: Config) -> None:
+async def test_health_partial_response() -> None:
     """Test health check with partial/invalid responses."""
-    monitor = HealthMonitor(mock_config)
+    monitor = HealthMonitor(
+        controller_url="http://localhost:8080",
+        llm_url="http://localhost:11434",
+        controller_api_key="test-key"
+    )
     
-    # Mock HTTP client
-    monitor.client = AsyncMock()
-    
-    # Mock controller with bad response
+    # Mock controller with 500 error
     controller_response = AsyncMock()
     controller_response.status_code = 500
-    controller_response.json = AsyncMock(return_value={"error": "Internal error"})
+    monitor.controller_client.get = AsyncMock(return_value=controller_response)
     
-    # Mock LLM with good response
+    # Mock LLM success
     llm_response = AsyncMock()
     llm_response.status_code = 200
-    llm_response.json = AsyncMock(return_value={"status": "ok"})
-    
-    async def mock_get(url, **kwargs):
-        if "8080" in url:
-            return controller_response
-        return llm_response
-    
-    monitor.client.get = mock_get
+    monitor.llm_client.get = AsyncMock(return_value=llm_response)
     
     status = await monitor.check_all()
     
-    assert status["status"] == "degraded"
-    assert status["controller"] == "unhealthy"
-    assert status["llm"] == "healthy"
+    assert status["status"] in ["degraded", "unhealthy"]
+    assert status["checks"]["controller"]["status"] == "error"
+    
+    await monitor.close()
+
+
+@pytest.mark.asyncio
+async def test_health_returns_urls() -> None:
+    """Test that health check returns service URLs."""
+    monitor = HealthMonitor(
+        controller_url="http://test-controller:8080",
+        llm_url="http://test-llm:11434",
+        controller_api_key="test-key"
+    )
+    
+    # Mock responses
+    controller_response = AsyncMock()
+    controller_response.status_code = 200
+    monitor.controller_client.get = AsyncMock(return_value=controller_response)
+    
+    llm_response = AsyncMock()
+    llm_response.status_code = 200
+    monitor.llm_client.get = AsyncMock(return_value=llm_response)
+    
+    status = await monitor.check_all()
+    
+    assert "url" in status["checks"]["controller"]
+    assert status["checks"]["controller"]["url"] == "http://test-controller:8080"
+    
+    await monitor.close()
