@@ -2,6 +2,7 @@
 
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from httpx import AsyncClient, HTTPError
 import asyncio
 import logging
@@ -61,6 +62,9 @@ class SekhaProxy:
             Enhanced chat response with sekha_metadata
         """
         user_messages = request.get("messages", [])
+        folder = request.get("folder", self.config.memory.default_folder)
+        excluded_folders = request.get("excluded_folders", self.config.memory.excluded_folders)
+        context_budget = request.get("context_budget", self.config.memory.context_token_budget)
         
         if not user_messages:
             raise HTTPException(status_code=400, detail="No messages provided")
@@ -75,8 +79,8 @@ class SekhaProxy:
                 context = await self._get_context_from_controller(
                     query=last_query,
                     preferred_labels=self.config.memory.preferred_labels,
-                    context_budget=self.config.memory.context_token_budget,
-                    excluded_folders=self.config.memory.excluded_folders
+                    context_budget=context_budget,
+                    excluded_folders=excluded_folders
                 )
                 logger.info(f"Retrieved {len(context)} context messages")
             except Exception as e:
@@ -108,7 +112,8 @@ class SekhaProxy:
             asyncio.create_task(
                 self._store_conversation(
                     messages=user_messages + [assistant_message],
-                    context_used=context
+                    context_used=context,
+                    folder=folder
                 )
             )
         
@@ -169,7 +174,8 @@ class SekhaProxy:
     async def _store_conversation(
         self,
         messages: List[Dict[str, Any]],
-        context_used: List[Dict[str, Any]]
+        context_used: List[Dict[str, Any]],
+        folder: str
     ):
         """
         Store conversation via controller's existing endpoint.
@@ -177,6 +183,7 @@ class SekhaProxy:
         Args:
             messages: Full conversation (user + assistant)
             context_used: Context that was injected
+            folder: Folder path for organization
         """
         try:
             # Generate label from first user message
@@ -193,7 +200,7 @@ class SekhaProxy:
                 "/api/v1/conversations",
                 json={
                     "label": label,
-                    "folder": self.config.memory.default_folder,
+                    "folder": folder,
                     "messages": [
                         {
                             "role": m.get("role", "user"),
@@ -207,7 +214,7 @@ class SekhaProxy:
             )
             
             if response.status_code == 201:
-                logger.info(f"Conversation stored: {label}")
+                logger.info(f"Conversation stored: {label} in {folder}")
             else:
                 logger.warning(f"Conversation storage returned {response.status_code}: {response.text}")
         except Exception as e:
@@ -252,6 +259,9 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# Mount static files for web UI
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
 
 @app.post("/v1/chat/completions")
 async def chat_completions(request: Request):
@@ -295,14 +305,22 @@ async def health():
 
 @app.get("/")
 async def root():
-    """Root endpoint - proxy info."""
+    """Root endpoint - redirect to web UI."""
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/static/index.html")
+
+
+@app.get("/api/info")
+async def info():
+    """API info endpoint."""
     return {
         "name": "Sekha Proxy",
         "version": "1.0.0",
         "status": "running",
         "endpoints": {
             "chat": "/v1/chat/completions",
-            "health": "/health"
+            "health": "/health",
+            "ui": "/static/index.html"
         },
         "config": {
             "llm_provider": proxy_instance.config.llm.provider,
