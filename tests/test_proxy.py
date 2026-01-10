@@ -1,7 +1,7 @@
 """Integration tests for proxy functionality."""
 
 import pytest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock
 from proxy import SekhaProxy
 from config import Config, LLMConfig, ControllerConfig, MemoryConfig
 
@@ -51,7 +51,7 @@ async def test_context_injection(mock_config: Config) -> None:
     ]
     mock_response = AsyncMock()
     mock_response.status_code = 200
-    mock_response.json = AsyncMock(return_value=context)
+    mock_response.json = MagicMock(return_value=context)  # Synchronous, not async!
     proxy.controller_client.post = AsyncMock(return_value=mock_response)
     
     # Mock LLM client
@@ -63,8 +63,8 @@ async def test_context_injection(mock_config: Config) -> None:
     }
     llm_mock_response = AsyncMock()
     llm_mock_response.status_code = 200
-    llm_mock_response.json = AsyncMock(return_value=llm_response)
-    llm_mock_response.raise_for_status = AsyncMock()
+    llm_mock_response.json = MagicMock(return_value=llm_response)  # Synchronous!
+    llm_mock_response.raise_for_status = MagicMock()  # Synchronous!
     proxy.llm_client.post = AsyncMock(return_value=llm_mock_response)
     
     # Test request
@@ -96,7 +96,7 @@ async def test_privacy_exclusion(mock_config: Config) -> None:
     # Mock empty context (excluded)
     mock_response = AsyncMock()
     mock_response.status_code = 200
-    mock_response.json = AsyncMock(return_value=[])
+    mock_response.json = MagicMock(return_value=[])  # Synchronous!
     proxy.controller_client.post = AsyncMock(return_value=mock_response)
     
     # Mock LLM client
@@ -108,8 +108,8 @@ async def test_privacy_exclusion(mock_config: Config) -> None:
     }
     llm_mock_response = AsyncMock()
     llm_mock_response.status_code = 200
-    llm_mock_response.json = AsyncMock(return_value=llm_response)
-    llm_mock_response.raise_for_status = AsyncMock()
+    llm_mock_response.json = MagicMock(return_value=llm_response)  # Synchronous!
+    llm_mock_response.raise_for_status = MagicMock()  # Synchronous!
     proxy.llm_client.post = AsyncMock(return_value=llm_mock_response)
     
     # Test request with folder parameter
@@ -124,7 +124,7 @@ async def test_privacy_exclusion(mock_config: Config) -> None:
     controller_call = proxy.controller_client.post.call_args
     assert controller_call is not None
     
-    # Verify no context was used
+    # Verify no context was used (no sekha_metadata key or context_count = 0)
     if "sekha_metadata" in response:
         assert response["sekha_metadata"]["context_count"] == 0
     
