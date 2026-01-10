@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  controller:
+    image: ghcr.io/sekha-ai/controller:latest
+    ports:
+      - "8080:8080"
+    volumes:
+      - sekha-data:/app/data
+    environment:
+      - DATABASE_URL=sqlite:///app/data/sekha.db
+      - CHROMA_URL=http://chroma:8000
+  
+  proxy:
+    image: ghcr.io/sekha-ai/proxy:latest
+    ports:
+      - "8081:8081"
+    environment:
+      - CONTROLLER_URL=http://controller:8080
+      - CONTROLLER_API_KEY=${SEKHA_API_KEY}
+      - LLM_URL=http://ollama:11434
+      - AUTO_INJECT_CONTEXT=true
+    depends_on:
+      - controller
+  
+  ui:
+    image: ghcr.io/sekha-ai/ui:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - CONTROLLER_URL=http://controller:8080
+      - PROXY_URL=http://proxy:8081
+  
+  chroma:
+    image: chromadb/chroma:latest
+    ports:
+      - "8000:8000"
+    volumes:
+      - chroma-data:/chroma/chroma
+  
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+
+volumes:
+  sekha-data:
+  chroma-data:
+  ollama-data:
