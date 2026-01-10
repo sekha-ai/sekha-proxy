@@ -1,51 +1,116 @@
 version: '3.8'
 
 services:
-  controller:
-    image: ghcr.io/sekha-ai/controller:latest
-    ports:
-      - "8080:8080"
-    volumes:
-      - sekha-data:/app/data
-    environment:
-      - DATABASE_URL=sqlite:///app/data/sekha.db
-      - CHROMA_URL=http://chroma:8000
-  
-  proxy:
-    image: ghcr.io/sekha-ai/proxy:latest
-    ports:
-      - "8081:8081"
-    environment:
-      - CONTROLLER_URL=http://controller:8080
-      - CONTROLLER_API_KEY=${SEKHA_API_KEY}
-      - LLM_URL=http://ollama:11434
-      - AUTO_INJECT_CONTEXT=true
-    depends_on:
-      - controller
-  
-  ui:
-    image: ghcr.io/sekha-ai/ui:latest
-    ports:
-      - "3000:3000"
-    environment:
-      - CONTROLLER_URL=http://controller:8080
-      - PROXY_URL=http://proxy:8081
-  
+  # Chroma vector database
   chroma:
-    image: chromadb/chroma:latest
+    image: ghcr.io/chroma-core/chroma:latest
     ports:
       - "8000:8000"
     volumes:
-      - chroma-data:/chroma/chroma
-  
+      - chroma_data:/chroma/chroma
+    environment:
+      - ANONYMIZED_TELEMETRY=False
+      - ALLOW_RESET=True
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - sekha
+
+  # Sekha Controller (Rust)
+  controller:
+    build:
+      context: ../sekha-controller
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    volumes:
+      - controller_data:/data
+    environment:
+      - DATABASE_URL=sqlite:///data/sekha.db
+      - CHROMA_URL=http://chroma:8000
+      - RUST_LOG=info
+      - API_KEY=${CONTROLLER_API_KEY:-sekha-secret-key}
+    depends_on:
+      chroma:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - sekha
+
+  # Ollama LLM (optional - can use external LLM instead)
   ollama:
     image: ollama/ollama:latest
     ports:
       - "11434:11434"
     volumes:
-      - ollama-data:/root/.ollama
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+    # Uncomment to enable GPU support:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+    networks:
+      - sekha
+
+  # Sekha Proxy (Python)
+  proxy:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8081"
+    environment:
+      # Proxy settings
+      - PROXY_HOST=0.0.0.0
+      - PROXY_PORT=8081
+      
+      # Controller connection
+      - CONTROLLER_URL=http://controller:8080
+      - CONTROLLER_API_KEY=${CONTROLLER_API_KEY:-sekha-secret-key}
+      - CONTROLLER_TIMEOUT=30
+      
+      # LLM connection (change for external LLMs)
+      - LLM_PROVIDER=ollama
+      - LLM_URL=http://ollama:11434
+      - LLM_MODEL=llama2
+      - LLM_TIMEOUT=120
+      
+      # Memory settings
+      - MEMORY_AUTO_INJECT_CONTEXT=true
+      - MEMORY_DEFAULT_FOLDER=/demo
+      - MEMORY_CONTEXT_TOKEN_BUDGET=4000
+      - MEMORY_PREFERRED_LABELS=
+      - MEMORY_EXCLUDED_FOLDERS=
+    depends_on:
+      controller:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - sekha
 
 volumes:
-  sekha-data:
-  chroma-data:
-  ollama-data:
+  chroma_data:
+  controller_data:
+  ollama_data:
+
+networks:
+  sekha:
+    driver: bridge
