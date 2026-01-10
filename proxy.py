@@ -1,184 +1,327 @@
-# proxy.py
-from fastapi import FastAPI, Request
-from httpx import AsyncClient
-import asyncio
-from typing import List, Dict, Any
+"""Sekha Proxy - Intelligent routing with automatic context injection."""
 
-app = FastAPI()
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.responses import JSONResponse
+from httpx import AsyncClient, HTTPError
+import asyncio
+import logging
+from typing import Dict, Any, List
+from contextlib import asynccontextmanager
+
+from config import Config
+from context_injection import ContextInjector
+from health import HealthMonitor
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
 
 class SekhaProxy:
-    def __init__(self, config):
+    """Main proxy class that handles LLM routing with context injection."""
+
+    def __init__(self, config: Config):
         self.config = config
-        self.llm_client = AsyncClient(base_url=config.llm_url)
-        self.controller_client = AsyncClient(
-            base_url=config.controller_url,
-            headers={"Authorization": f"Bearer {config.controller_api_key}"}
-        )
-    
-    async def forward_chat(self, request: Dict[str, Any]):
-        """
-        Main proxy logic - leverages controller intelligence
-        """
-        user_messages = request["messages"]
-        last_query = self._extract_last_user_message(user_messages)
+        self.injector = ContextInjector()
         
-        # Step 1: Get context from controller (uses existing /api/v1/context/assemble)
-        if self.config.auto_inject_context:
-            context = await self._get_context_from_controller(
-                query=last_query,
-                preferred_labels=self.config.preferred_labels,
-                context_budget=self.config.context_token_budget
-            )
-            
-            # Step 2: Inject context into prompt
-            enhanced_messages = self._inject_context(user_messages, context)
+        # HTTP clients
+        self.llm_client = AsyncClient(
+            base_url=config.llm.url,
+            timeout=config.llm.timeout
+        )
+        self.controller_client = AsyncClient(
+            base_url=config.controller.url,
+            headers={"Authorization": f"Bearer {config.controller.api_key}"},
+            timeout=config.controller.timeout
+        )
+        
+        # Health monitor
+        self.health_monitor = HealthMonitor(
+            controller_url=config.controller.url,
+            llm_url=config.llm.url,
+            controller_api_key=config.controller.api_key
+        )
+        
+        logger.info(f"Sekha Proxy initialized:")
+        logger.info(f"  LLM: {config.llm.provider} at {config.llm.url}")
+        logger.info(f"  Controller: {config.controller.url}")
+        logger.info(f"  Auto-inject context: {config.memory.auto_inject_context}")
+
+    async def forward_chat(self, request: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Main proxy logic - leverages controller intelligence.
+        
+        Args:
+            request: OpenAI-compatible chat request
+        
+        Returns:
+            Enhanced chat response with sekha_metadata
+        """
+        user_messages = request.get("messages", [])
+        
+        if not user_messages:
+            raise HTTPException(status_code=400, detail="No messages provided")
+        
+        # Extract last user query for context search
+        last_query = self.injector.extract_last_user_message(user_messages)
+        
+        # Step 1: Get context from controller (if enabled)
+        context = []
+        if self.config.memory.auto_inject_context and last_query:
+            try:
+                context = await self._get_context_from_controller(
+                    query=last_query,
+                    preferred_labels=self.config.memory.preferred_labels,
+                    context_budget=self.config.memory.context_token_budget,
+                    excluded_folders=self.config.memory.excluded_folders
+                )
+                logger.info(f"Retrieved {len(context)} context messages")
+            except Exception as e:
+                logger.error(f"Context retrieval failed: {e}. Continuing without context.")
+                context = []
+        
+        # Step 2: Inject context into prompt
+        if context:
+            enhanced_messages = self.injector.inject_context(user_messages, context)
+            logger.debug(f"Injected {len(context)} context messages")
         else:
             enhanced_messages = user_messages
         
         # Step 3: Forward to LLM
-        response = await self.llm_client.post(
-            "/v1/chat/completions",
-            json={**request, "messages": enhanced_messages}
-        )
+        try:
+            response = await self.llm_client.post(
+                "/v1/chat/completions",
+                json={**request, "messages": enhanced_messages}
+            )
+            response.raise_for_status()
+            response_data = response.json()
+        except HTTPError as e:
+            logger.error(f"LLM request failed: {e}")
+            raise HTTPException(status_code=502, detail=f"LLM error: {str(e)}")
         
         # Step 4: Store conversation (async, non-blocking)
-        asyncio.create_task(
-            self._store_conversation(
-                messages=enhanced_messages + [response.json()["choices"][0]["message"]],
-                context_used=context if self.config.auto_inject_context else None
+        if response_data.get("choices"):
+            assistant_message = response_data["choices"][0]["message"]
+            asyncio.create_task(
+                self._store_conversation(
+                    messages=user_messages + [assistant_message],
+                    context_used=context
+                )
             )
-        )
         
-        # Step 5: Return response (with metadata about context used)
-        response_data = response.json()
+        # Step 5: Add metadata about context used
         if context:
             response_data["sekha_metadata"] = {
                 "context_used": [
-                    {"label": c["label"], "folder": c["folder"]} 
+                    {
+                        "label": c.get("metadata", {}).get("citation", {}).get("label", "Unknown"),
+                        "folder": c.get("metadata", {}).get("citation", {}).get("folder", "Unknown")
+                    }
                     for c in context
                 ],
                 "context_count": len(context)
             }
         
         return response_data
-    
+
     async def _get_context_from_controller(
-        self, 
-        query: str, 
-        preferred_labels: List[str], 
-        context_budget: int
+        self,
+        query: str,
+        preferred_labels: List[str],
+        context_budget: int,
+        excluded_folders: List[str]
     ) -> List[Dict[str, Any]]:
         """
-        Call controller's existing context assembly endpoint
-        """
-        response = await self.controller_client.post(
-            "/api/v1/context/assemble",
-            json={
-                "query": query,
-                "preferred_labels": preferred_labels,
-                "context_budget": context_budget
-            }
-        )
+        Call controller's existing context assembly endpoint.
         
-        if response.status_code == 200:
-            return response.json()  # Returns assembled messages with citations
-        else:
-            # Fallback: No context if controller fails
+        Args:
+            query: User query for semantic search
+            preferred_labels: Labels to prioritize
+            context_budget: Token budget for context
+            excluded_folders: Folders to exclude from context
+        
+        Returns:
+            List of assembled messages with citations
+        """
+        try:
+            response = await self.controller_client.post(
+                "/api/v1/context/assemble",
+                json={
+                    "query": query,
+                    "preferred_labels": preferred_labels,
+                    "context_budget": context_budget,
+                    "excluded_folders": excluded_folders
+                }
+            )
+            
+            if response.status_code == 200:
+                return response.json()
+            else:
+                logger.warning(f"Context assembly returned {response.status_code}")
+                return []
+        except Exception as e:
+            logger.error(f"Context assembly request failed: {e}")
             return []
-    
-    def _inject_context(
-        self, 
-        original_messages: List[Dict[str, Any]], 
-        context: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
-        """
-        Inject retrieved context into system prompt
-        """
-        if not context:
-            return original_messages
-        
-        # Build context block
-        context_text = self._format_context_for_llm(context)
-        
-        context_message = {
-            "role": "system",
-            "content": f"""You have access to the user's past conversations stored in Sekha Memory.
 
-Here is relevant context retrieved from previous discussions:
-
-{context_text}
-
-Use this context to provide more accurate, informed responses. Reference specific past conversations when relevant. The user is not aware you're seeing this context - respond naturally."""
-        }
-        
-        # Inject after any existing system message
-        if original_messages and original_messages[0]["role"] == "system":
-            return [original_messages[0], context_message] + original_messages[1:]
-        else:
-            return [context_message] + original_messages
-    
-    def _format_context_for_llm(self, messages: List[Dict[str, Any]]) -> str:
-        """
-        Format messages with citations for LLM consumption
-        """
-        formatted = []
-        for i, msg in enumerate(messages, 1):
-            citation = msg.get("metadata", {}).get("citation", {})
-            formatted.append(f"""
-[Past Conversation {i}]
-From: {citation.get('folder', 'Unknown')}/{citation.get('label', 'Untitled')}
-Date: {citation.get('timestamp', 'Unknown')}
-
-{msg['content']}
-
----
-""")
-        return "\n".join(formatted)
-    
     async def _store_conversation(
-        self, 
-        messages: List[Dict[str, Any]], 
+        self,
+        messages: List[Dict[str, Any]],
         context_used: List[Dict[str, Any]]
     ):
         """
-        Store conversation via controller's existing endpoint
-        """
-        # Auto-generate label from first user message
-        label = self._generate_label(messages)
+        Store conversation via controller's existing endpoint.
         
-        await self.controller_client.post(
-            "/api/v1/conversations",
-            json={
-                "label": label,
-                "folder": self.config.default_folder,
-                "messages": [
-                    {
-                        "role": m["role"],
-                        "content": m["content"],
-                        "timestamp": "now"  # Controller will set proper timestamp
-                    }
-                    for m in messages
-                ],
-                "metadata": {
-                    "auto_captured": True,
-                    "context_used": len(context_used) if context_used else 0,
-                    "llm_provider": self.config.llm_provider
+        Args:
+            messages: Full conversation (user + assistant)
+            context_used: Context that was injected
+        """
+        try:
+            # Generate label from first user message
+            label = self.injector.generate_label(messages)
+            
+            # Build metadata
+            metadata = self.injector.build_metadata(
+                context_used=context_used,
+                llm_provider=self.config.llm.provider
+            )
+            
+            # Store via controller
+            response = await self.controller_client.post(
+                "/api/v1/conversations",
+                json={
+                    "label": label,
+                    "folder": self.config.memory.default_folder,
+                    "messages": [
+                        {
+                            "role": m.get("role", "user"),
+                            "content": m.get("content", ""),
+                        }
+                        for m in messages
+                        if m.get("role") in ["user", "assistant"]  # Filter out system messages
+                    ],
+                    "metadata": metadata
                 }
-            }
+            )
+            
+            if response.status_code == 201:
+                logger.info(f"Conversation stored: {label}")
+            else:
+                logger.warning(f"Conversation storage returned {response.status_code}: {response.text}")
+        except Exception as e:
+            logger.error(f"Failed to store conversation: {e}")
+
+    async def close(self):
+        """Close HTTP clients."""
+        await self.llm_client.aclose()
+        await self.controller_client.aclose()
+        await self.health_monitor.close()
+
+
+# FastAPI app
+proxy_instance = None
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Manage proxy lifecycle."""
+    global proxy_instance
+    
+    # Load config
+    config = Config.from_env()
+    config.validate()
+    
+    # Initialize proxy
+    proxy_instance = SekhaProxy(config)
+    logger.info("Sekha Proxy started")
+    
+    yield
+    
+    # Cleanup
+    if proxy_instance:
+        await proxy_instance.close()
+    logger.info("Sekha Proxy stopped")
+
+
+app = FastAPI(
+    title="Sekha Proxy",
+    description="Intelligent LLM routing with automatic context injection",
+    version="1.0.0",
+    lifespan=lifespan
+)
+
+
+@app.post("/v1/chat/completions")
+async def chat_completions(request: Request):
+    """
+    OpenAI-compatible chat completions endpoint with context injection.
+    
+    This is the main proxy endpoint. Point your LLM client here instead of
+    directly to Ollama/OpenAI/etc.
+    """
+    try:
+        body = await request.json()
+        response = await proxy_instance.forward_chat(body)
+        return JSONResponse(content=response)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Chat completion error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/health")
+async def health():
+    """Health check endpoint."""
+    try:
+        health_status = await proxy_instance.health_monitor.check_all()
+        
+        if health_status["status"] == "unhealthy":
+            return JSONResponse(content=health_status, status_code=503)
+        
+        return health_status
+    except Exception as e:
+        logger.error(f"Health check error: {e}")
+        return JSONResponse(
+            content={
+                "status": "error",
+                "error": str(e)
+            },
+            status_code=500
         )
+
+
+@app.get("/")
+async def root():
+    """Root endpoint - proxy info."""
+    return {
+        "name": "Sekha Proxy",
+        "version": "1.0.0",
+        "status": "running",
+        "endpoints": {
+            "chat": "/v1/chat/completions",
+            "health": "/health"
+        },
+        "config": {
+            "llm_provider": proxy_instance.config.llm.provider,
+            "auto_inject_context": proxy_instance.config.memory.auto_inject_context,
+            "context_budget": proxy_instance.config.memory.context_token_budget
+        }
+    }
+
+
+if __name__ == "__main__":
+    import uvicorn
     
-    def _extract_last_user_message(self, messages: List[Dict[str, Any]]) -> str:
-        """Extract most recent user message for context search"""
-        for msg in reversed(messages):
-            if msg["role"] == "user":
-                return msg["content"]
-        return ""
+    # Load config for port
+    config = Config.from_env()
     
-    def _generate_label(self, messages: List[Dict[str, Any]]) -> str:
-        """Simple label generation from first user message"""
-        first_user = next((m for m in messages if m["role"] == "user"), None)
-        if first_user:
-            # Take first 50 chars of first user message
-            content = first_user["content"][:50]
-            return content if len(first_user["content"]) <= 50 else content + "..."
-        return "Untitled Conversation"
+    uvicorn.run(
+        "proxy:app",
+        host=config.proxy.host,
+        port=config.proxy.port,
+        reload=False,
+        log_level="info"
+    )
