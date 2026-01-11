@@ -96,6 +96,10 @@ class SekhaProxy:
         
         # Step 3: Forward to LLM
         try:
+            request_body = {**request, "messages": enhanced_messages}
+            if "model" not in request_body:
+                request_body["model"] = "llama3.1:8b"  # Your default model
+                
             response = await self.llm_client.post(
                 "/v1/chat/completions",
                 json={**request, "messages": enhanced_messages}
