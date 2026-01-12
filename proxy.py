@@ -96,13 +96,16 @@ class SekhaProxy:
         
         # Step 3: Forward to LLM
         try:
-            request_body = {**request, "messages": enhanced_messages}
-            if "model" not in request_body:
-                request_body["model"] = "llama3.1:8b"  # Your default model
-                
+            # Build OpenAI-compatible request (Ollama rejects unknown fields)
+            llm_request = {
+                "model": request.get("model", "llama3.1:8b"),
+                "messages": enhanced_messages,
+                "stream": request.get("stream", False),
+            }
+            
             response = await self.llm_client.post(
                 "/v1/chat/completions",
-                json={**request, "messages": enhanced_messages}
+                json=llm_request
             )
             response.raise_for_status()
             response_data = response.json()
