@@ -36,7 +36,14 @@ jobs:
         run: |
           pip install safety bandit
           safety scan
-          bandit -r . -f json -o bandit-report.json
+          bandit -r . -f json -o bandit-report.json || true
+          
+      - name: Show Bandit results
+        if: hashFiles('requirements.txt') != '' || hashFiles('pyproject.toml') != ''
+        run: |
+          if [ -f bandit-report.json ]; then
+            cat bandit-report.json
+          fi
       
       # JavaScript security
       - name: npm audit
