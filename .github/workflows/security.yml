@@ -13,6 +13,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      # Safety CLI
+      - uses: actions/checkout@main
+      - name: Run Safety CLI to check for vulnerabilities
+        uses: pyupio/safety-action@v1
+        with:
+          api-key: ${{ secrets.SAFETY_API_KEY }}
       
       # Rust security
       - name: Rust security audit
@@ -25,6 +31,8 @@ jobs:
       # Python security
       - name: Python security scan
         if: hashFiles('requirements.txt') != '' || hashFiles('pyproject.toml') != ''
+        env:
+          SAFETY_API_KEY: ${{ secrets.SAFETY_API_KEY }}
         run: |
           pip install safety bandit
           safety scan
