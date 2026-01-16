@@ -12,7 +12,7 @@ jobs:
   security:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       
       # Rust security
       - name: Rust security audit
@@ -27,14 +27,20 @@ jobs:
         if: hashFiles('requirements.txt') != '' || hashFiles('pyproject.toml') != ''
         run: |
           pip install safety bandit
-          safety check
+          safety scan
           bandit -r . -f json -o bandit-report.json
       
       # JavaScript security
       - name: npm audit
         if: hashFiles('package.json') != ''
         run: npm audit
-      
+
+      # Safety CLI
+      - name: Run Safety CLI to check for vulnerabilities
+        uses: pyupio/safety-action@v1
+        with:
+          api-key: ${{ secrets.SAFETY_API_KEY }}    
+            
       # Container security
       - name: Trivy scan
         if: hashFiles('Dockerfile') != ''
@@ -44,9 +50,9 @@ jobs:
           scan-ref: '.'
           format: 'sarif'
           output: 'trivy-results.sarif'
-      
+
       - name: Upload Trivy results
         if: hashFiles('Dockerfile') != ''
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: 'trivy-results.sarif'
