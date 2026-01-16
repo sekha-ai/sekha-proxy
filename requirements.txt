@@ -8,7 +8,7 @@ uvicorn[standard]==0.27.0
 httpx==0.26.0
 
 # Configuration
-python-dotenv==1.0.0
+python-dotenv==1.2.1
 
 # Development
 pytest==7.4.4
