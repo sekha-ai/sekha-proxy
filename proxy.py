@@ -1,4 +1,7 @@
-"""Sekha Proxy - Intelligent routing with automatic context injection."""
+""" Sekha Proxy - Intelligent LLM routing with automatic context injection """
+__version__ = "0.1.0"
+__author__ = "Sekha AI"
+__email__ = "dev@sekha-ai.dev"
 
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse

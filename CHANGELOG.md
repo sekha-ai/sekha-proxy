@@ -24,7 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-## [1.0.0] - 2026-01-10
+## [0.0.0] - 2026-01-10
 
 ### Added
 - Initial release
@@ -37,3 +37,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [Unreleased]: https://github.com/sekha-ai/sekha-proxy/compare/v1.0.0...HEAD
 [1.0.0]: https://github.com/sekha-ai/sekha-proxy/releases/tag/v1.0.0
+
+## [0.1.0] - 2026-01-16
+
+### Added
+- Initial release
+- OpenAI-compatible proxy endpoint (/v1/chat/completions)
+- Automatic context injection from Sekha Controller
+- Privacy controls with folder exclusion
+- Web UI for chat and configuration
+- Docker Compose deployment
+- LLM provider support: Ollama, OpenAI, Anthropic, Google, Cohere
+- Health monitoring and metrics
+- Comprehensive test suite (>85% coverage)
+
+### Features
+- Sub-10ms overhead vs direct LLM calls
+- Async storage and context retrieval
+- Configurable context budgets
+- Label and folder organization
+- Real-time privacy filtering
+
+[0.1.0]: https://github.com/sekha-ai/sekha-proxy/releases/tag/v0.1.0
