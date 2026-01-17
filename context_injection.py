@@ -115,9 +115,11 @@ Date: {timestamp}
         first_user = next((m for m in messages if m.get("role") == "user"), None)
         if first_user:
             content = first_user.get("content", "")
-            if len(content) <= 50:
-                return content
-            return content[:50] + "..."
+            # Ensure type safety for mypy
+            content_str: str = str(content) if not isinstance(content, str) else content
+            if len(content_str) <= 50:
+                return content_str
+            return content_str[:50] + "..."
         return "Untitled Conversation"
 
     def build_metadata(
