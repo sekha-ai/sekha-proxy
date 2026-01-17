@@ -116,7 +116,7 @@ class SekhaProxy:
                 "/v1/chat/completions", json=llm_request
             )
             response.raise_for_status()
-            response_data = response.json()
+            response_data: Dict[str, Any] = response.json()
         except HTTPError as e:
             logger.error(f"LLM request failed: {e}")
             raise HTTPException(status_code=502, detail=f"LLM error: {str(e)}")
@@ -182,7 +182,8 @@ class SekhaProxy:
             )
 
             if response.status_code == 200:
-                return response.json()
+                result: List[Dict[str, Any]] = response.json()
+                return result
             else:
                 logger.warning(f"Context assembly returned {response.status_code}")
                 return []
@@ -292,6 +293,9 @@ async def chat_completions(request: Request):
     This is the main proxy endpoint. Point your LLM client here instead of
     directly to Ollama/OpenAI/etc.
     """
+    if proxy_instance is None:
+        raise HTTPException(status_code=503, detail="Proxy not initialized")
+    
     try:
         body = await request.json()
         response = await proxy_instance.forward_chat(body)
