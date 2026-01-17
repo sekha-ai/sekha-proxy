@@ -141,7 +141,7 @@ async def test_web_ui_accessible() -> None:
                 response = await client.get("/static/index.html")
                 if response.status_code == 200:
                     assert len(response.text) > 0
-            except (HTTPError, Exception):
+            except Exception:
                 pass  # Static files may not be implemented yet
 
     except ConnectError:
