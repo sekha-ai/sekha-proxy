@@ -141,8 +141,9 @@ async def test_web_ui_accessible() -> None:
                 response = await client.get("/static/index.html")
                 if response.status_code == 200:
                     assert len(response.text) > 0
-            except:
+            except (HTTPError, Exception):
                 pass  # Static files may not be implemented yet
+
     except ConnectError:
         pytest.skip("Server not running on localhost:8081")
 
