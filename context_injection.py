@@ -98,7 +98,8 @@ Date: {timestamp}
         """
         for msg in reversed(messages):
             if msg.get("role") == "user":
-                return msg.get("content", "")
+                content: str = msg.get("content", "")
+                return content
         return ""
 
     def generate_label(self, messages: List[Dict[str, Any]]) -> str:
