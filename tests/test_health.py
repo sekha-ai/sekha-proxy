@@ -46,9 +46,7 @@ async def test_health_controller_down() -> None:
     )
 
     # Mock controller failure
-    monitor.controller_client.get = AsyncMock(
-        side_effect=Exception("Connection refused")
-    )
+    monitor.controller_client.get = AsyncMock(side_effect=Exception("Connection refused"))
 
     # Mock LLM success
     llm_response = AsyncMock()
@@ -98,9 +96,7 @@ async def test_health_all_services_down() -> None:
     )
 
     # Mock all failures
-    monitor.controller_client.get = AsyncMock(
-        side_effect=Exception("Connection refused")
-    )
+    monitor.controller_client.get = AsyncMock(side_effect=Exception("Connection refused"))
     monitor.llm_client.get = AsyncMock(side_effect=Exception("Connection refused"))
 
     status = await monitor.check_all()
