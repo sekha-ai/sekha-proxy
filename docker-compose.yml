@@ -3,11 +3,11 @@ version: '3.8'
 services:
   # Chroma vector database
   chroma:
-    image: ghcr.io/chroma-core/chroma:latest
+    image: chroma-db/chroma:latest
     ports:
       - "8000:8000"
     volumes:
-      - chroma_data:/chroma/chroma
+      - chroma_data:/chroma
     environment:
       - ANONYMIZED_TELEMETRY=False
       - ALLOW_RESET=True
