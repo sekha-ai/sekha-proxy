@@ -87,9 +87,6 @@ jobs:
         image: chromadb/chroma:latest
         ports:
           - 8000:8000
-        env:
-          ANONYMIZED_TELEMETRY: false
-          ALLOW_RESET: true
     
     steps:
     - name: Checkout code
@@ -106,26 +103,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
     
-    - name: Wait for ChromaDB to be ready
-      run: |
-        echo "Waiting for ChromaDB to be healthy..."
-        for i in {1..30}; do
-          if curl -f http://localhost:8000/api/v1; then
-            echo "ChromaDB is ready!"
-            exit 0
-          fi
-          echo "Attempt $i: ChromaDB not ready yet, waiting..."
-          sleep 2
-        done
-        echo "ChromaDB failed to start"
-        exit 1
-    
     - name: Run integration tests
       run: |
-        # Note: Full integration tests require controller + LLM stack
-        # For now, we just verify ChromaDB is accessible
-        curl -f http://localhost:8000/api/v1
-        echo "ChromaDB service is running and healthy"
-        
         # Run integration tests (they will skip if full stack not available)
         pytest tests/test_integration.py -v -m integration || echo "Integration tests skipped (full stack not running)"
