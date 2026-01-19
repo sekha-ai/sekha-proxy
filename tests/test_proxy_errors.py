@@ -1,5 +1,6 @@
 """Tests for proxy error handling and edge cases."""
 
+from typing import Any, Dict
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -49,15 +50,15 @@ async def test_llm_connection_error(test_config: Config) -> None:
     proxy = SekhaProxy(test_config)
 
     # Mock controller to return empty context
-    proxy.controller_client = AsyncMock()
+    proxy.controller_client = AsyncMock()  # type: ignore[assignment]
     mock_controller_response = AsyncMock()
     mock_controller_response.status_code = 200
     mock_controller_response.json = MagicMock(return_value=[])
-    proxy.controller_client.post = AsyncMock(return_value=mock_controller_response)
+    proxy.controller_client.post = AsyncMock(return_value=mock_controller_response)  # type: ignore[method-assign]
 
     # Mock LLM to raise connection error
-    proxy.llm_client = AsyncMock()
-    proxy.llm_client.post = AsyncMock(
+    proxy.llm_client = AsyncMock()  # type: ignore[assignment]
+    proxy.llm_client.post = AsyncMock(  # type: ignore[method-assign]
         side_effect=RequestError("Connection refused", request=None)
     )
 
@@ -78,14 +79,14 @@ async def test_llm_http_error(test_config: Config) -> None:
     proxy = SekhaProxy(test_config)
 
     # Mock controller
-    proxy.controller_client = AsyncMock()
+    proxy.controller_client = AsyncMock()  # type: ignore[assignment]
     mock_controller_response = AsyncMock()
     mock_controller_response.status_code = 200
     mock_controller_response.json = MagicMock(return_value=[])
-    proxy.controller_client.post = AsyncMock(return_value=mock_controller_response)
+    proxy.controller_client.post = AsyncMock(return_value=mock_controller_response)  # type: ignore[method-assign]
 
     # Mock LLM to return error status
-    proxy.llm_client = AsyncMock()
+    proxy.llm_client = AsyncMock()  # type: ignore[assignment]
     mock_llm_response = AsyncMock()
     mock_llm_response.status_code = 500
     mock_llm_response.raise_for_status = MagicMock(
@@ -95,7 +96,7 @@ async def test_llm_http_error(test_config: Config) -> None:
             response=mock_llm_response,
         )
     )
-    proxy.llm_client.post = AsyncMock(return_value=mock_llm_response)
+    proxy.llm_client.post = AsyncMock(return_value=mock_llm_response)  # type: ignore[method-assign]
 
     request = {"messages": [{"role": "user", "content": "Test"}]}
 
@@ -113,21 +114,21 @@ async def test_controller_failure_continues(test_config: Config) -> None:
     proxy = SekhaProxy(test_config)
 
     # Mock controller to fail
-    proxy.controller_client = AsyncMock()
-    proxy.controller_client.post = AsyncMock(
+    proxy.controller_client = AsyncMock()  # type: ignore[assignment]
+    proxy.controller_client.post = AsyncMock(  # type: ignore[method-assign]
         side_effect=Exception("Controller unavailable")
     )
 
     # Mock LLM to succeed
-    proxy.llm_client = AsyncMock()
-    llm_response = {
+    proxy.llm_client = AsyncMock()  # type: ignore[assignment]
+    llm_response: Dict[str, Any] = {
         "choices": [{"message": {"role": "assistant", "content": "Response"}}]
     }
     mock_llm_response = AsyncMock()
     mock_llm_response.status_code = 200
     mock_llm_response.json = MagicMock(return_value=llm_response)
     mock_llm_response.raise_for_status = MagicMock()
-    proxy.llm_client.post = AsyncMock(return_value=mock_llm_response)
+    proxy.llm_client.post = AsyncMock(return_value=mock_llm_response)  # type: ignore[method-assign]
 
     request = {"messages": [{"role": "user", "content": "Test"}]}
 
@@ -147,26 +148,19 @@ async def test_context_disabled(test_config: Config) -> None:
     proxy = SekhaProxy(test_config)
 
     # Mock LLM only (controller shouldn't be called)
-    proxy.llm_client = AsyncMock()
-    llm_response = {
+    proxy.llm_client = AsyncMock()  # type: ignore[assignment]
+    llm_response: Dict[str, Any] = {
         "choices": [{"message": {"role": "assistant", "content": "Response"}}]
     }
     mock_llm_response = AsyncMock()
     mock_llm_response.status_code = 200
     mock_llm_response.json = MagicMock(return_value=llm_response)
     mock_llm_response.raise_for_status = MagicMock()
-    proxy.llm_client.post = AsyncMock(return_value=mock_llm_response)
+    proxy.llm_client.post = AsyncMock(return_value=mock_llm_response)  # type: ignore[method-assign]
 
     request = {"messages": [{"role": "user", "content": "Test"}]}
 
     response = await proxy.forward_chat(request)
-
-    # Verify controller was not called
-    assert (
-        not proxy.controller_client.post.called
-        if hasattr(proxy.controller_client, "called")
-        else True
-    )
 
     # Verify no context metadata
     assert "sekha_metadata" not in response
@@ -180,21 +174,21 @@ async def test_controller_non_200_status(test_config: Config) -> None:
     proxy = SekhaProxy(test_config)
 
     # Mock controller to return non-200
-    proxy.controller_client = AsyncMock()
+    proxy.controller_client = AsyncMock()  # type: ignore[assignment]
     mock_controller_response = AsyncMock()
     mock_controller_response.status_code = 503
-    proxy.controller_client.post = AsyncMock(return_value=mock_controller_response)
+    proxy.controller_client.post = AsyncMock(return_value=mock_controller_response)  # type: ignore[method-assign]
 
     # Mock LLM
-    proxy.llm_client = AsyncMock()
-    llm_response = {
+    proxy.llm_client = AsyncMock()  # type: ignore[assignment]
+    llm_response: Dict[str, Any] = {
         "choices": [{"message": {"role": "assistant", "content": "Response"}}]
     }
     mock_llm_response = AsyncMock()
     mock_llm_response.status_code = 200
     mock_llm_response.json = MagicMock(return_value=llm_response)
     mock_llm_response.raise_for_status = MagicMock()
-    proxy.llm_client.post = AsyncMock(return_value=mock_llm_response)
+    proxy.llm_client.post = AsyncMock(return_value=mock_llm_response)  # type: ignore[method-assign]
 
     request = {"messages": [{"role": "user", "content": "Test"}]}
 
@@ -213,22 +207,22 @@ async def test_store_conversation_failure(test_config: Config) -> None:
     proxy = SekhaProxy(test_config)
 
     # Mock controller for context retrieval
-    proxy.controller_client = AsyncMock()
+    proxy.controller_client = AsyncMock()  # type: ignore[assignment]
     mock_controller_response = AsyncMock()
     mock_controller_response.status_code = 200
     mock_controller_response.json = MagicMock(return_value=[])
-    proxy.controller_client.post = AsyncMock(return_value=mock_controller_response)
+    proxy.controller_client.post = AsyncMock(return_value=mock_controller_response)  # type: ignore[method-assign]
 
     # Mock LLM
-    proxy.llm_client = AsyncMock()
-    llm_response = {
+    proxy.llm_client = AsyncMock()  # type: ignore[assignment]
+    llm_response: Dict[str, Any] = {
         "choices": [{"message": {"role": "assistant", "content": "Response"}}]
     }
     mock_llm_response = AsyncMock()
     mock_llm_response.status_code = 200
     mock_llm_response.json = MagicMock(return_value=llm_response)
     mock_llm_response.raise_for_status = MagicMock()
-    proxy.llm_client.post = AsyncMock(return_value=mock_llm_response)
+    proxy.llm_client.post = AsyncMock(return_value=mock_llm_response)  # type: ignore[method-assign]
 
     request = {"messages": [{"role": "user", "content": "Test"}]}
 
@@ -246,20 +240,20 @@ async def test_no_choices_in_llm_response(test_config: Config) -> None:
     proxy = SekhaProxy(test_config)
 
     # Mock controller
-    proxy.controller_client = AsyncMock()
+    proxy.controller_client = AsyncMock()  # type: ignore[assignment]
     mock_controller_response = AsyncMock()
     mock_controller_response.status_code = 200
     mock_controller_response.json = MagicMock(return_value=[])
-    proxy.controller_client.post = AsyncMock(return_value=mock_controller_response)
+    proxy.controller_client.post = AsyncMock(return_value=mock_controller_response)  # type: ignore[method-assign]
 
     # Mock LLM with no choices
-    proxy.llm_client = AsyncMock()
-    llm_response = {}  # Missing 'choices'
+    proxy.llm_client = AsyncMock()  # type: ignore[assignment]
+    llm_response: Dict[str, Any] = {}  # Missing 'choices'
     mock_llm_response = AsyncMock()
     mock_llm_response.status_code = 200
     mock_llm_response.json = MagicMock(return_value=llm_response)
     mock_llm_response.raise_for_status = MagicMock()
-    proxy.llm_client.post = AsyncMock(return_value=mock_llm_response)
+    proxy.llm_client.post = AsyncMock(return_value=mock_llm_response)  # type: ignore[method-assign]
 
     request = {"messages": [{"role": "user", "content": "Test"}]}
 
