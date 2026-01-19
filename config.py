@@ -85,8 +85,7 @@ class Config:
                 timeout=int(os.getenv("CONTROLLER_TIMEOUT", "30")),
             ),
             memory=MemoryConfig(
-                auto_inject_context=os.getenv("AUTO_INJECT_CONTEXT", "true").lower()
-                == "true",
+                auto_inject_context=os.getenv("AUTO_INJECT_CONTEXT", "true").lower() == "true",
                 context_token_budget=int(os.getenv("CONTEXT_TOKEN_BUDGET", "2000")),
                 context_limit=int(os.getenv("CONTEXT_LIMIT", "5")),
                 default_folder=os.getenv("DEFAULT_FOLDER", "/auto-captured"),
@@ -102,9 +101,7 @@ class Config:
                 ),
             ),
             privacy=PrivacyConfig(
-                exclude_from_ai_context=os.getenv(
-                    "EXCLUDE_FROM_AI_CONTEXT", "false"
-                ).lower()
+                exclude_from_ai_context=os.getenv("EXCLUDE_FROM_AI_CONTEXT", "false").lower()
                 == "true"
             ),
         )

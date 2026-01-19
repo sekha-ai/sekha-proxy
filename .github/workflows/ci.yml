@@ -37,7 +37,7 @@ jobs:
     
     - name: Type check with mypy
       run: |
-        pip install mypy types-httpx
+        pip install mypy
         mypy . --ignore-missing-imports
       continue-on-error: false
     

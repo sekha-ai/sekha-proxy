@@ -37,9 +37,7 @@ async def test_context_injection(mock_config: Config) -> None:
     context = [
         {
             "content": "We decided on PostgreSQL",
-            "metadata": {
-                "citation": {"label": "Database discussion", "folder": "/work"}
-            },
+            "metadata": {"citation": {"label": "Database discussion", "folder": "/work"}},
         }
     ]
     mock_response = AsyncMock()
@@ -50,9 +48,7 @@ async def test_context_injection(mock_config: Config) -> None:
     # Mock LLM client
     proxy.llm_client = AsyncMock()
     llm_response = {
-        "choices": [
-            {"message": {"role": "assistant", "content": "You're using PostgreSQL"}}
-        ]
+        "choices": [{"message": {"role": "assistant", "content": "You're using PostgreSQL"}}]
     }
     llm_mock_response = AsyncMock()
     llm_mock_response.status_code = 200

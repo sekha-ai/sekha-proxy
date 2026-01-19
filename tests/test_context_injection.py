@@ -222,9 +222,7 @@ def test_build_metadata_no_context(injector):
     assert metadata["llm_provider"] == "openai"
 
 
-def test_inject_context_preserves_message_order(
-    injector, user_messages, sample_context
-):
+def test_inject_context_preserves_message_order(injector, user_messages, sample_context):
     """Test that message order is preserved correctly."""
     result = injector.inject_context(user_messages, sample_context)
 
