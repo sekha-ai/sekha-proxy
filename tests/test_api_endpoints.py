@@ -3,7 +3,7 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from httpx import AsyncClient
+from httpx import ASGITransport, AsyncClient
 
 
 @pytest.fixture
@@ -24,7 +24,8 @@ async def test_info_endpoint(mock_proxy_instance) -> None:
     with patch("proxy.proxy_instance", mock_proxy_instance):
         from proxy import app
 
-        async with AsyncClient(app=app, base_url="http://test") as client:
+        transport = ASGITransport(app=app)  # type: ignore[arg-type]
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
             response = await client.get("/api/info")
 
     assert response.status_code == 200
@@ -45,7 +46,8 @@ async def test_health_endpoint_healthy(mock_proxy_instance) -> None:
     with patch("proxy.proxy_instance", mock_proxy_instance):
         from proxy import app
 
-        async with AsyncClient(app=app, base_url="http://test") as client:
+        transport = ASGITransport(app=app)  # type: ignore[arg-type]
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
             response = await client.get("/health")
 
     assert response.status_code == 200
@@ -63,7 +65,8 @@ async def test_health_endpoint_unhealthy(mock_proxy_instance) -> None:
     with patch("proxy.proxy_instance", mock_proxy_instance):
         from proxy import app
 
-        async with AsyncClient(app=app, base_url="http://test") as client:
+        transport = ASGITransport(app=app)  # type: ignore[arg-type]
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
             response = await client.get("/health")
 
     assert response.status_code == 503
@@ -81,7 +84,8 @@ async def test_health_endpoint_error(mock_proxy_instance) -> None:
     with patch("proxy.proxy_instance", mock_proxy_instance):
         from proxy import app
 
-        async with AsyncClient(app=app, base_url="http://test") as client:
+        transport = ASGITransport(app=app)  # type: ignore[arg-type]
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
             response = await client.get("/health")
 
     assert response.status_code == 500
@@ -100,7 +104,8 @@ async def test_chat_completions_success(mock_proxy_instance) -> None:
     with patch("proxy.proxy_instance", mock_proxy_instance):
         from proxy import app
 
-        async with AsyncClient(app=app, base_url="http://test") as client:
+        transport = ASGITransport(app=app)  # type: ignore[arg-type]
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
             response = await client.post(
                 "/v1/chat/completions",
                 json={"messages": [{"role": "user", "content": "Test"}]},
@@ -118,7 +123,8 @@ async def test_chat_completions_proxy_not_initialized() -> None:
     with patch("proxy.proxy_instance", None):
         from proxy import app
 
-        async with AsyncClient(app=app, base_url="http://test") as client:
+        transport = ASGITransport(app=app)  # type: ignore[arg-type]
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
             response = await client.post(
                 "/v1/chat/completions",
                 json={"messages": [{"role": "user", "content": "Test"}]},
@@ -134,7 +140,8 @@ async def test_chat_completions_invalid_json(mock_proxy_instance) -> None:
     with patch("proxy.proxy_instance", mock_proxy_instance):
         from proxy import app
 
-        async with AsyncClient(app=app, base_url="http://test") as client:
+        transport = ASGITransport(app=app)  # type: ignore[arg-type]
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
             response = await client.post(
                 "/v1/chat/completions",
                 content="invalid json",
@@ -154,7 +161,8 @@ async def test_chat_completions_internal_error(mock_proxy_instance) -> None:
     with patch("proxy.proxy_instance", mock_proxy_instance):
         from proxy import app
 
-        async with AsyncClient(app=app, base_url="http://test") as client:
+        transport = ASGITransport(app=app)  # type: ignore[arg-type]
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
             response = await client.post(
                 "/v1/chat/completions",
                 json={"messages": [{"role": "user", "content": "Test"}]},
@@ -168,9 +176,8 @@ async def test_root_redirect() -> None:
     """Test root endpoint redirects to UI."""
     from proxy import app
 
-    async with AsyncClient(
-        app=app, base_url="http://test", follow_redirects=False
-    ) as client:
+    transport = ASGITransport(app=app)  # type: ignore[arg-type]
+    async with AsyncClient(transport=transport, base_url="http://test", follow_redirects=False) as client:
         response = await client.get("/")
 
     assert response.status_code in [307, 302]  # Redirect
@@ -189,7 +196,8 @@ async def test_chat_with_all_parameters(mock_proxy_instance) -> None:
     with patch("proxy.proxy_instance", mock_proxy_instance):
         from proxy import app
 
-        async with AsyncClient(app=app, base_url="http://test") as client:
+        transport = ASGITransport(app=app)  # type: ignore[arg-type]
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
             response = await client.post(
                 "/v1/chat/completions",
                 json={
