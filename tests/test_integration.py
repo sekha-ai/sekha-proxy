@@ -13,7 +13,7 @@ Skip with: pytest tests/ -v -m "not integration"
 import asyncio
 
 import pytest
-from httpx import AsyncClient, ConnectError
+from httpx import AsyncClient, ConnectError, HTTPStatusError
 
 
 @pytest.mark.asyncio
@@ -133,7 +133,7 @@ async def test_web_ui_accessible() -> None:
                 response = await client.get("/static/index.html")
                 if response.status_code == 200:
                     assert len(response.text) > 0
-            except (HTTPError, Exception):
+            except (HTTPStatusError, Exception):
                 pass  # Static files may not be implemented yet
 
     except ConnectError:
