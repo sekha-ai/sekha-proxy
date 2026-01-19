@@ -110,7 +110,7 @@ jobs:
       run: |
         echo "Waiting for ChromaDB to be healthy..."
         for i in {1..30}; do
-          if curl -f http://localhost:8000/api/v1/heartbeat; then
+          if curl -f http://localhost:8000/api/v1; then
             echo "ChromaDB is ready!"
             exit 0
           fi
@@ -124,7 +124,7 @@ jobs:
       run: |
         # Note: Full integration tests require controller + LLM stack
         # For now, we just verify ChromaDB is accessible
-        curl -f http://localhost:8000/api/v1/heartbeat
+        curl -f http://localhost:8000/api/v1
         echo "ChromaDB service is running and healthy"
         
         # Run integration tests (they will skip if full stack not available)
