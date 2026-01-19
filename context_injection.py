@@ -144,8 +144,12 @@ Date: {timestamp}
             "llm_provider": llm_provider,
             "context_conversations": [
                 {
-                    "label": c.get("metadata", {}).get("citation", {}).get("label", "Unknown"),
-                    "folder": c.get("metadata", {}).get("citation", {}).get("folder", "Unknown"),
+                    "label": c.get("metadata", {})
+                    .get("citation", {})
+                    .get("label", "Unknown"),
+                    "folder": c.get("metadata", {})
+                    .get("citation", {})
+                    .get("folder", "Unknown"),
                 }
                 for c in (context_used or [])
             ],

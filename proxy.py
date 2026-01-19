@@ -33,7 +33,9 @@ class SekhaProxy:
         self.injector = ContextInjector()
 
         # HTTP clients
-        self.llm_client = AsyncClient(base_url=config.llm.url, timeout=config.llm.timeout)
+        self.llm_client = AsyncClient(
+            base_url=config.llm.url, timeout=config.llm.timeout
+        )
         self.controller_client = AsyncClient(
             base_url=config.controller.url,
             headers={"Authorization": f"Bearer {config.controller.api_key}"},
@@ -64,8 +66,12 @@ class SekhaProxy:
         """
         user_messages = request.get("messages", [])
         folder = request.get("folder", self.config.memory.default_folder)
-        excluded_folders = request.get("excluded_folders", self.config.memory.excluded_folders)
-        context_budget = request.get("context_budget", self.config.memory.context_token_budget)
+        excluded_folders = request.get(
+            "excluded_folders", self.config.memory.excluded_folders
+        )
+        context_budget = request.get(
+            "context_budget", self.config.memory.context_token_budget
+        )
 
         if not user_messages:
             raise HTTPException(status_code=400, detail="No messages provided")
@@ -85,7 +91,9 @@ class SekhaProxy:
                 )
                 logger.info(f"Retrieved {len(context)} context messages")
             except Exception as e:
-                logger.error(f"Context retrieval failed: {e}. Continuing without context.")
+                logger.error(
+                    f"Context retrieval failed: {e}. Continuing without context."
+                )
                 context = []
 
         # Step 2: Inject context into prompt
@@ -104,7 +112,9 @@ class SekhaProxy:
                 "stream": request.get("stream", False),
             }
 
-            response = await self.llm_client.post("/v1/chat/completions", json=llm_request)
+            response = await self.llm_client.post(
+                "/v1/chat/completions", json=llm_request
+            )
             response.raise_for_status()
             response_data: Dict[str, Any] = response.json()
         except HTTPError as e:
@@ -127,7 +137,9 @@ class SekhaProxy:
             response_data["sekha_metadata"] = {
                 "context_used": [
                     {
-                        "label": c.get("metadata", {}).get("citation", {}).get("label", "Unknown"),
+                        "label": c.get("metadata", {})
+                        .get("citation", {})
+                        .get("label", "Unknown"),
                         "folder": c.get("metadata", {})
                         .get("citation", {})
                         .get("folder", "Unknown"),
@@ -214,7 +226,8 @@ class SekhaProxy:
                             "content": m.get("content", ""),
                         }
                         for m in messages
-                        if m.get("role") in ["user", "assistant"]  # Filter out system messages
+                        if m.get("role")
+                        in ["user", "assistant"]  # Filter out system messages
                     ],
                     "metadata": metadata,
                 },
@@ -306,7 +319,9 @@ async def health():
         return health_status
     except Exception as e:
         logger.error(f"Health check error: {e}")
-        return JSONResponse(content={"status": "error", "error": str(e)}, status_code=500)
+        return JSONResponse(
+            content={"status": "error", "error": str(e)}, status_code=500
+        )
 
 
 @app.get("/")

@@ -3,7 +3,6 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from fastapi.testclient import TestClient
 from httpx import AsyncClient
 
 
@@ -169,7 +168,9 @@ async def test_root_redirect() -> None:
     """Test root endpoint redirects to UI."""
     from proxy import app
 
-    async with AsyncClient(app=app, base_url="http://test", follow_redirects=False) as client:
+    async with AsyncClient(
+        app=app, base_url="http://test", follow_redirects=False
+    ) as client:
         response = await client.get("/")
 
     assert response.status_code in [307, 302]  # Redirect

@@ -104,7 +104,9 @@ def test_config_custom_values() -> None:
             api_key="sk-test-123",
             timeout=60,
         ),
-        controller=ControllerConfig(url="http://custom:8080", api_key="my-key", timeout=15),
+        controller=ControllerConfig(
+            url="http://custom:8080", api_key="my-key", timeout=15
+        ),
         memory=MemoryConfig(
             auto_inject_context=False,
             context_token_budget=10000,

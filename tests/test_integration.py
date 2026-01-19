@@ -24,12 +24,16 @@ async def test_full_flow() -> None:
     Requires server running on localhost:8081
     """
     try:
-        async with AsyncClient(base_url="http://localhost:8081", timeout=5.0) as proxy_client:
+        async with AsyncClient(
+            base_url="http://localhost:8081", timeout=5.0
+        ) as proxy_client:
             # 1. Create initial conversation via proxy
             response1 = await proxy_client.post(
                 "/v1/chat/completions",
                 json={
-                    "messages": [{"role": "user", "content": "I'm using Rust with SQLite"}],
+                    "messages": [
+                        {"role": "user", "content": "I'm using Rust with SQLite"}
+                    ],
                     "folder": "/test/integration",
                 },
             )
@@ -42,7 +46,9 @@ async def test_full_flow() -> None:
             response2 = await proxy_client.post(
                 "/v1/chat/completions",
                 json={
-                    "messages": [{"role": "user", "content": "What database am I using?"}],
+                    "messages": [
+                        {"role": "user", "content": "What database am I using?"}
+                    ],
                     "folder": "/test/integration",
                 },
             )
@@ -68,7 +74,9 @@ async def test_privacy_filtering() -> None:
     Requires server running on localhost:8081
     """
     try:
-        async with AsyncClient(base_url="http://localhost:8081", timeout=5.0) as proxy_client:
+        async with AsyncClient(
+            base_url="http://localhost:8081", timeout=5.0
+        ) as proxy_client:
             # 1. Store sensitive info in /private folder
             response1 = await proxy_client.post(
                 "/v1/chat/completions",

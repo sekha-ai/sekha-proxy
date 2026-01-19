@@ -162,7 +162,11 @@ async def test_context_disabled(test_config: Config) -> None:
     response = await proxy.forward_chat(request)
 
     # Verify controller was not called
-    assert not proxy.controller_client.post.called if hasattr(proxy.controller_client, 'called') else True
+    assert (
+        not proxy.controller_client.post.called
+        if hasattr(proxy.controller_client, "called")
+        else True
+    )
 
     # Verify no context metadata
     assert "sekha_metadata" not in response
