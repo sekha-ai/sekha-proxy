@@ -137,7 +137,7 @@ async def test_chat_completions_proxy_not_initialized() -> None:
 @pytest.mark.asyncio
 async def test_chat_completions_invalid_json(mock_proxy_instance) -> None:
     """Test chat completions with invalid JSON.
-    
+
     Note: FastAPI/Starlette returns 500 for JSON decode errors,
     not 422 (which is for validation errors on valid JSON).
     """
@@ -182,7 +182,9 @@ async def test_root_redirect() -> None:
     from proxy import app
 
     transport = ASGITransport(app=app)  # type: ignore[arg-type]
-    async with AsyncClient(transport=transport, base_url="http://test", follow_redirects=False) as client:
+    async with AsyncClient(
+        transport=transport, base_url="http://test", follow_redirects=False
+    ) as client:
         response = await client.get("/")
 
     assert response.status_code in [307, 302]  # Redirect

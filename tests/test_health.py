@@ -54,9 +54,7 @@ async def test_health_controller_down() -> None:
 
     # Mock controller failure
     mock_controller_client = MagicMock()
-    mock_controller_client.get = AsyncMock(
-        side_effect=Exception("Connection refused")
-    )
+    mock_controller_client.get = AsyncMock(side_effect=Exception("Connection refused"))
     mock_controller_client.aclose = AsyncMock()
     monitor.controller_client = mock_controller_client  # type: ignore[assignment]
 
@@ -118,9 +116,7 @@ async def test_health_all_services_down() -> None:
 
     # Mock all failures
     mock_controller_client = MagicMock()
-    mock_controller_client.get = AsyncMock(
-        side_effect=Exception("Connection refused")
-    )
+    mock_controller_client.get = AsyncMock(side_effect=Exception("Connection refused"))
     mock_controller_client.aclose = AsyncMock()
     monitor.controller_client = mock_controller_client  # type: ignore[assignment]
 
