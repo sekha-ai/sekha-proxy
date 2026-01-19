@@ -1,6 +1,7 @@
 [![CI](https://github.com/sekha-ai/sekha-proxy/workflows/CI/badge.svg)](https://github.com/sekha-ai/sekha-proxy/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/sekha-ai/sekha-proxy/branch/main/graph/badge.svg)](https://codecov.io/gh/sekha-ai/sekha-proxy)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
+[![Docker](https://img.shields.io/badge/docker-ghcr.io-blue)](https://github.com/orgs/sekha-ai/packages?repo_name=sekha-proxy)
 
 # Sekha Proxy
 
