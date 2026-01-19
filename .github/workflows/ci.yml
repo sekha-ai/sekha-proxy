@@ -48,9 +48,12 @@ jobs:
     - name: Upload coverage
       uses: codecov/codecov-action@v5
       with:
+        token: ${{ secrets.CODECOV_TOKEN }}
         files: ./coverage.xml
         flags: unittests
         name: codecov-${{ matrix.python-version }}
+        fail_ci_if_error: false
+        verbose: true
 
   docker:
     name: Build Docker image
