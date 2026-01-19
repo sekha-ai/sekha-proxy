@@ -1,6 +1,6 @@
 """Tests for health monitoring."""
 
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -16,15 +16,20 @@ async def test_health_all_services_up() -> None:
         controller_api_key="test-key",
     )
 
-    # Mock HTTP clients
+    # Mock HTTP clients properly
     controller_response = AsyncMock()
     controller_response.status_code = 200
 
     llm_response = AsyncMock()
     llm_response.status_code = 200
 
-    monitor.controller_client.get = AsyncMock(return_value=controller_response)
-    monitor.llm_client.get = AsyncMock(return_value=llm_response)
+    mock_controller_client = MagicMock()
+    mock_controller_client.get = AsyncMock(return_value=controller_response)
+    monitor.controller_client = mock_controller_client  # type: ignore[assignment]
+
+    mock_llm_client = MagicMock()
+    mock_llm_client.get = AsyncMock(return_value=llm_response)
+    monitor.llm_client = mock_llm_client  # type: ignore[assignment]
 
     status = await monitor.check_all()
 
@@ -46,14 +51,18 @@ async def test_health_controller_down() -> None:
     )
 
     # Mock controller failure
-    monitor.controller_client.get = AsyncMock(
+    mock_controller_client = MagicMock()
+    mock_controller_client.get = AsyncMock(
         side_effect=Exception("Connection refused")
     )
+    monitor.controller_client = mock_controller_client  # type: ignore[assignment]
 
     # Mock LLM success
     llm_response = AsyncMock()
     llm_response.status_code = 200
-    monitor.llm_client.get = AsyncMock(return_value=llm_response)
+    mock_llm_client = MagicMock()
+    mock_llm_client.get = AsyncMock(return_value=llm_response)
+    monitor.llm_client = mock_llm_client  # type: ignore[assignment]
 
     status = await monitor.check_all()
 
@@ -75,10 +84,14 @@ async def test_health_llm_down() -> None:
     # Mock controller success
     controller_response = AsyncMock()
     controller_response.status_code = 200
-    monitor.controller_client.get = AsyncMock(return_value=controller_response)
+    mock_controller_client = MagicMock()
+    mock_controller_client.get = AsyncMock(return_value=controller_response)
+    monitor.controller_client = mock_controller_client  # type: ignore[assignment]
 
     # Mock LLM failure
-    monitor.llm_client.get = AsyncMock(side_effect=Exception("Connection refused"))
+    mock_llm_client = MagicMock()
+    mock_llm_client.get = AsyncMock(side_effect=Exception("Connection refused"))
+    monitor.llm_client = mock_llm_client  # type: ignore[assignment]
 
     status = await monitor.check_all()
 
@@ -98,10 +111,15 @@ async def test_health_all_services_down() -> None:
     )
 
     # Mock all failures
-    monitor.controller_client.get = AsyncMock(
+    mock_controller_client = MagicMock()
+    mock_controller_client.get = AsyncMock(
         side_effect=Exception("Connection refused")
     )
-    monitor.llm_client.get = AsyncMock(side_effect=Exception("Connection refused"))
+    monitor.controller_client = mock_controller_client  # type: ignore[assignment]
+
+    mock_llm_client = MagicMock()
+    mock_llm_client.get = AsyncMock(side_effect=Exception("Connection refused"))
+    monitor.llm_client = mock_llm_client  # type: ignore[assignment]
 
     status = await monitor.check_all()
 
@@ -124,12 +142,16 @@ async def test_health_partial_response() -> None:
     # Mock controller with 500 error
     controller_response = AsyncMock()
     controller_response.status_code = 500
-    monitor.controller_client.get = AsyncMock(return_value=controller_response)
+    mock_controller_client = MagicMock()
+    mock_controller_client.get = AsyncMock(return_value=controller_response)
+    monitor.controller_client = mock_controller_client  # type: ignore[assignment]
 
     # Mock LLM success
     llm_response = AsyncMock()
     llm_response.status_code = 200
-    monitor.llm_client.get = AsyncMock(return_value=llm_response)
+    mock_llm_client = MagicMock()
+    mock_llm_client.get = AsyncMock(return_value=llm_response)
+    monitor.llm_client = mock_llm_client  # type: ignore[assignment]
 
     status = await monitor.check_all()
 
@@ -151,11 +173,15 @@ async def test_health_returns_urls() -> None:
     # Mock responses
     controller_response = AsyncMock()
     controller_response.status_code = 200
-    monitor.controller_client.get = AsyncMock(return_value=controller_response)
+    mock_controller_client = MagicMock()
+    mock_controller_client.get = AsyncMock(return_value=controller_response)
+    monitor.controller_client = mock_controller_client  # type: ignore[assignment]
 
     llm_response = AsyncMock()
     llm_response.status_code = 200
-    monitor.llm_client.get = AsyncMock(return_value=llm_response)
+    mock_llm_client = MagicMock()
+    mock_llm_client.get = AsyncMock(return_value=llm_response)
+    monitor.llm_client = mock_llm_client  # type: ignore[assignment]
 
     status = await monitor.check_all()
 
