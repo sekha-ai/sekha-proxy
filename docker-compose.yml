@@ -3,19 +3,27 @@ version: '3.8'
 services:
   # Chroma vector database
   chroma:
-    image: chroma-db/chroma:latest
+    image: chromadb/chroma:latest
+    user: root
+    command: >
+      sh -c "apt-get update -qq && 
+             apt-get install -y -qq curl > /dev/null 2>&1 && 
+             uvicorn chromadb.app:app --host 0.0.0.0 --port 8000 --workers 1"
     ports:
       - "8000:8000"
     volumes:
-      - chroma_data:/chroma
+      - chroma_data:/chroma/chroma
     environment:
+      - IS_PERSISTENT=TRUE
       - ANONYMIZED_TELEMETRY=False
       - ALLOW_RESET=True
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
     networks:
       - sekha
 
