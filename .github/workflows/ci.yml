@@ -84,17 +84,12 @@ jobs:
     
     services:
       chroma:
-        image: ghcr.io/chroma-core/chroma:latest
+        image: chromadb/chroma:latest
         ports:
           - 8000:8000
         env:
           ANONYMIZED_TELEMETRY: false
           ALLOW_RESET: true
-        options: >
-          --health-cmd "curl -f http://localhost:8000/api/v1/heartbeat || exit 1"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
     
     steps:
     - name: Checkout code
