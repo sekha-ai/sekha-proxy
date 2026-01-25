@@ -197,3 +197,91 @@ async def test_health_returns_urls() -> None:
     assert status["checks"]["controller"]["url"] == "http://test-controller:8080"
 
     await monitor.close()
+
+
+@pytest.mark.asyncio
+async def test_health_bridge_provider_healthy() -> None:
+    """Test health check for bridge provider when healthy."""
+    monitor = HealthMonitor(
+        controller_url="http://localhost:8080",
+        llm_url="http://localhost:5001",
+        controller_api_key="test-key",
+        llm_provider="bridge",
+    )
+
+    # Mock controller success
+    controller_response = AsyncMock()
+    controller_response.status_code = 200
+    mock_controller_client = MagicMock()
+    mock_controller_client.get = AsyncMock(return_value=controller_response)
+    mock_controller_client.aclose = AsyncMock()
+    monitor.controller_client = mock_controller_client  # type: ignore[assignment]
+
+    # Mock bridge /health endpoint success
+    bridge_response = AsyncMock()
+    bridge_response.status_code = 200
+    mock_llm_client = MagicMock()
+    mock_llm_client.get = AsyncMock(return_value=bridge_response)
+    mock_llm_client.aclose = AsyncMock()
+    monitor.llm_client = mock_llm_client  # type: ignore[assignment]
+
+    status = await monitor.check_all()
+
+    assert status["status"] == "healthy"
+    assert status["checks"]["llm"]["status"] == "ok"
+    assert status["checks"]["llm"]["provider"] == "bridge"
+
+    # Verify it called /health endpoint (not /api/tags)
+    mock_llm_client.get.assert_called_with("/health")
+
+    await monitor.close()
+
+
+@pytest.mark.asyncio
+async def test_health_bridge_provider_unhealthy() -> None:
+    """Test health check for bridge provider when unhealthy."""
+    monitor = HealthMonitor(
+        controller_url="http://localhost:8080",
+        llm_url="http://localhost:5001",
+        controller_api_key="test-key",
+        llm_provider="bridge",
+    )
+
+    # Mock controller success
+    controller_response = AsyncMock()
+    controller_response.status_code = 200
+    mock_controller_client = MagicMock()
+    mock_controller_client.get = AsyncMock(return_value=controller_response)
+    mock_controller_client.aclose = AsyncMock()
+    monitor.controller_client = mock_controller_client  # type: ignore[assignment]
+
+    # Mock bridge /health endpoint failure
+    bridge_response = AsyncMock()
+    bridge_response.status_code = 503
+    mock_llm_client = MagicMock()
+    mock_llm_client.get = AsyncMock(return_value=bridge_response)
+    mock_llm_client.aclose = AsyncMock()
+    monitor.llm_client = mock_llm_client  # type: ignore[assignment]
+
+    status = await monitor.check_all()
+
+    assert status["status"] in ["degraded", "unhealthy"]
+    assert status["checks"]["llm"]["status"] == "error"
+    assert status["checks"]["llm"]["provider"] == "bridge"
+
+    await monitor.close()
+
+
+@pytest.mark.asyncio
+async def test_health_bridge_provider_defaults_to_ollama() -> None:
+    """Test that llm_provider defaults to ollama when not specified."""
+    monitor = HealthMonitor(
+        controller_url="http://localhost:8080",
+        llm_url="http://localhost:11434",
+        controller_api_key="test-key",
+        # llm_provider not specified, should default to "ollama"
+    )
+
+    assert monitor.llm_provider == "ollama"
+
+    await monitor.close()
