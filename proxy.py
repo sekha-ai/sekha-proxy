@@ -47,6 +47,7 @@ class SekhaProxy:
             controller_url=config.controller.url,
             llm_url=config.llm.url,
             controller_api_key=config.controller.api_key,
+            llm_provider=config.llm.provider,
         )
 
         logger.info("Sekha Proxy initialized:")
