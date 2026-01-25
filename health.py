@@ -11,7 +11,13 @@ logger = logging.getLogger(__name__)
 class HealthMonitor:
     """Monitor health of proxy, controller, and LLM."""
 
-    def __init__(self, controller_url: str, llm_url: str, controller_api_key: str, llm_provider: str = "ollama"):
+    def __init__(
+        self,
+        controller_url: str,
+        llm_url: str,
+        controller_api_key: str,
+        llm_provider: str = "ollama",
+    ):
         self.controller_url = controller_url
         self.llm_url = llm_url
         self.llm_provider = llm_provider
@@ -103,12 +109,20 @@ class HealthMonitor:
             # Try Ollama-style health check first
             response = await self.llm_client.get("/api/tags")
             if response.status_code == 200:
-                return {"status": "ok", "url": self.llm_url, "provider": self.llm_provider}
+                return {
+                    "status": "ok",
+                    "url": self.llm_url,
+                    "provider": self.llm_provider,
+                }
 
             # Try OpenAI-style health check
             response = await self.llm_client.get("/v1/models")
             if response.status_code == 200:
-                return {"status": "ok", "url": self.llm_url, "provider": self.llm_provider}
+                return {
+                    "status": "ok",
+                    "url": self.llm_url,
+                    "provider": self.llm_provider,
+                }
 
             return {
                 "status": "error",
