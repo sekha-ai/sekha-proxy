@@ -120,6 +120,7 @@ class Config:
             "anthropic",
             "google",
             "cohere",
+            "bridge",  # Added to support sekha-llm-bridge service
         ]:
             raise ValueError(f"Unsupported LLM provider: {self.llm.provider}")
 
