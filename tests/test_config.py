@@ -63,6 +63,29 @@ def test_config_validate_llm_provider() -> None:
         config.validate()
 
 
+def test_config_validate_bridge_provider() -> None:
+    """Test that validation accepts bridge as a valid provider."""
+    config = Config()
+    config.controller.api_key = "test-key"
+    config.llm.provider = "bridge"
+
+    # Should not raise
+    config.validate()
+
+
+def test_config_validate_all_supported_providers() -> None:
+    """Test that all supported LLM providers pass validation."""
+    supported_providers = ["ollama", "openai", "anthropic", "google", "cohere", "bridge"]
+
+    for provider in supported_providers:
+        config = Config()
+        config.controller.api_key = "test-key"
+        config.llm.provider = provider
+
+        # Should not raise for any supported provider
+        config.validate()
+
+
 def test_config_validate_context_budget() -> None:
     """Test that validation checks context token budget."""
     config = Config()
