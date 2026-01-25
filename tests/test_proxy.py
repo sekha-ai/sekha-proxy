@@ -125,3 +125,53 @@ async def test_privacy_exclusion(mock_config: Config) -> None:
         assert response["sekha_metadata"]["context_count"] == 0
 
     await proxy.close()
+
+
+@pytest.mark.asyncio
+async def test_bridge_provider_initialization() -> None:
+    """Test that bridge provider is correctly passed to HealthMonitor."""
+    config = Config(
+        llm=LLMConfig(url="http://bridge:5001", provider="bridge", timeout=120),
+        controller=ControllerConfig(
+            url="http://controller:8080", api_key="test-key", timeout=30
+        ),
+        memory=MemoryConfig(
+            auto_inject_context=True,
+            context_token_budget=4000,
+            excluded_folders=[],
+            default_folder="/test",
+        ),
+    )
+
+    proxy = SekhaProxy(config)
+
+    # Verify health monitor was initialized with bridge provider
+    assert proxy.health_monitor.llm_provider == "bridge"
+    assert proxy.health_monitor.llm_url == "http://bridge:5001"
+
+    await proxy.close()
+
+
+@pytest.mark.asyncio
+async def test_ollama_provider_initialization() -> None:
+    """Test that ollama provider is correctly passed to HealthMonitor."""
+    config = Config(
+        llm=LLMConfig(url="http://ollama:11434", provider="ollama", timeout=120),
+        controller=ControllerConfig(
+            url="http://controller:8080", api_key="test-key", timeout=30
+        ),
+        memory=MemoryConfig(
+            auto_inject_context=True,
+            context_token_budget=4000,
+            excluded_folders=[],
+            default_folder="/test",
+        ),
+    )
+
+    proxy = SekhaProxy(config)
+
+    # Verify health monitor was initialized with ollama provider
+    assert proxy.health_monitor.llm_provider == "ollama"
+    assert proxy.health_monitor.llm_url == "http://ollama:11434"
+
+    await proxy.close()
