@@ -2,9 +2,12 @@
 
 > **Transparent LLM Proxy with Automatic Context Injection - OPTIONAL Component**
 
+[![CI](https://github.com/sekha-ai/sekha-proxy/workflows/CI/badge.svg)](https://github.com/sekha-ai/sekha-proxy/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/sekha-ai/sekha-proxy/branch/main/graph/badge.svg)](https://codecov.io/gh/sekha-ai/sekha-proxy)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115%2B-green.svg)](https://fastapi.tiangolo.com)
+[![Docker](https://img.shields.io/badge/docker-ghcr.io-blue)](https://github.com/orgs/sekha-ai/packages?repo_name=sekha-proxy)
 
 ---
 
@@ -45,27 +48,27 @@
 
 ```
 ┌──────────────────────────────────────────┐
-│  Your LLM Client                           │
-│  (curl, ChatGPT clone, custom app)          │
-│  Points to: http://localhost:8081           │
-└─────────────────┬─────────────────────────┘
-                 │ POST /v1/chat/completions
-                 ▼
+│  Your LLM Client                         │
+│  (curl, ChatGPT clone, custom app)       │
+│  Points to: http://localhost:8081        │
+└─────────────────┬────────────────────────┘
+                  │ POST /v1/chat/completions
+                  ▼
 ┌──────────────────────────────────────────┐
-│  Sekha Proxy (Port 8081) ← YOU ARE HERE   │
-│  • Intercepts request                      │
-│  • Gets context from Controller            │
-│  • Injects context into messages           │
-│  • Forwards to LLM                         │
-│  • Stores conversation                     │
-└────────────────┬──────────────────────────┘
+│  Sekha Proxy (Port 8081) ← YOU ARE HERE  │
+│  • Intercepts request                    │
+│  • Gets context from Controller          │
+│  • Injects context into messages         │
+│  • Forwards to LLM                       │
+│  • Stores conversation                   │
+└────────────────┬─────────────────────────┘
                  │
      ┌───────────┼───────────┐
-     │            │            │
-     ▼            ▼            ▼
+     │           │           │
+     ▼           ▼           ▼
 ┌────────┐  ┌────────┐  ┌──────────┐
 │ Ctrlr  │  │ Bridge │  │ Ctrlr    │
-│Context│  │ → LLM  │  │ Store    │
+│Context │  │ → LLM  │  │ Store    │
 └────────┘  └────────┘  └──────────┘
 ```
 
