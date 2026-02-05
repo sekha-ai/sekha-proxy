@@ -26,24 +26,18 @@ logger = logging.getLogger(__name__)
 
 
 class SekhaProxy:
-    """Main proxy class that handles LLM routing with context injection.
-    
-    v2.0 Updates:
-    - Routes all LLM requests through bridge for multi-provider support
-    - Automatically detects vision needs from message content
-    - Includes routing metadata in responses
-    """
+    """Main proxy class that handles LLM routing with context injection."""
 
     def __init__(self, config: Config):
         self.config = config
         self.injector = ContextInjector()
 
-        # Bridge client (v2.0: all LLM requests go through bridge)
+        # HTTP client for bridge (v2.0 uses bridge for ALL LLM operations)
         self.bridge_client = AsyncClient(
             base_url=config.llm.bridge_url, timeout=config.llm.timeout
         )
         
-        # Controller client
+        # HTTP client for controller
         self.controller_client = AsyncClient(
             base_url=config.controller.url,
             headers={"Authorization": f"Bearer {config.controller.api_key}"},
@@ -53,9 +47,9 @@ class SekhaProxy:
         # Health monitor
         self.health_monitor = HealthMonitor(
             controller_url=config.controller.url,
-            llm_url=config.llm.bridge_url,  # Monitor bridge, not direct LLM
+            llm_url=config.llm.bridge_url,  # Monitor bridge instead of direct LLM
             controller_api_key=config.controller.api_key,
-            llm_provider="bridge",  # v2.0: proxy always talks to bridge
+            llm_provider="bridge",  # v2.0: always use bridge
         )
 
         logger.info("Sekha Proxy v2.0 initialized:")
@@ -63,46 +57,15 @@ class SekhaProxy:
         logger.info(f"  Controller: {config.controller.url}")
         logger.info(f"  Auto-inject context: {config.memory.auto_inject_context}")
 
-    def _detect_images_in_messages(self, messages: List[Dict[str, Any]]) -> bool:
-        """Detect if any message contains images.
-        
-        Args:
-            messages: List of message dictionaries
-            
-        Returns:
-            True if images detected, False otherwise
-        """
-        for msg in messages:
-            content = msg.get("content", "")
-            
-            # Check if content is a list (multimodal format)
-            if isinstance(content, list):
-                for item in content:
-                    if isinstance(item, dict) and item.get("type") == "image_url":
-                        return True
-            
-            # Check for image URLs in text content
-            if isinstance(content, str):
-                if "image" in content.lower() or "picture" in content.lower():
-                    # Could add more sophisticated image detection here
-                    pass
-                    
-        return False
-
     async def forward_chat(self, request: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Main proxy logic - leverages bridge routing and controller intelligence.
-
-        v2.0 Changes:
-        - Routes through bridge for provider selection
-        - Detects vision needs automatically
-        - Includes routing metadata in response
+        Main proxy logic - leverages controller intelligence and bridge routing.
 
         Args:
             request: OpenAI-compatible chat request
 
         Returns:
-            Enhanced chat response with sekha_metadata
+            Enhanced chat response with sekha_metadata including routing info
         """
         user_messages = request.get("messages", [])
         folder = request.get("folder", self.config.memory.default_folder)
@@ -143,68 +106,59 @@ class SekhaProxy:
         else:
             enhanced_messages = user_messages
 
-        # Step 3: Get optimal routing from bridge (v2.0)
+        # Step 3: Detect if vision is needed
+        has_images = any(
+            isinstance(msg.get("content"), list) 
+            and any(item.get("type") == "image_url" for item in msg.get("content", []))
+            for msg in enhanced_messages
+        )
+
+        # Step 4: Route request through bridge (v2.0)
         try:
-            # Detect if images are present
-            has_images = self._detect_images_in_messages(enhanced_messages)
+            # Get optimal model routing from bridge
+            routing_request = {
+                "task": "vision" if has_images else "chat_small",
+                "require_vision": has_images,
+            }
             
-            # Determine task type
-            task = "vision" if has_images else "chat_small"
-            
-            # Get preferred model from config or request
-            preferred_model = request.get("model") or (
-                self.config.llm.preferred_vision_model if has_images
-                else self.config.llm.preferred_chat_model
-            )
-            
-            # Route the request
+            # Add preferred model if specified
+            if request.get("model"):
+                routing_request["preferred_model"] = request["model"]
+            elif has_images and self.config.llm.preferred_vision_model:
+                routing_request["preferred_model"] = self.config.llm.preferred_vision_model
+            elif self.config.llm.preferred_chat_model:
+                routing_request["preferred_model"] = self.config.llm.preferred_chat_model
+
+            # Get routing decision from bridge
             routing_response = await self.bridge_client.post(
-                "/api/v1/route",
-                json={
-                    "task": task,
-                    "preferred_model": preferred_model,
-                    "require_vision": has_images,
-                    "max_cost": None,  # Could add cost limits here
-                },
+                "/api/v1/route", json=routing_request
             )
             routing_response.raise_for_status()
-            routing_data = routing_response.json()
-            
-            selected_model = routing_data["model_id"]
-            provider_id = routing_data["provider_id"]
-            estimated_cost = routing_data["estimated_cost"]
+            routing_info = routing_response.json()
             
             logger.info(
-                f"Bridge routed to {provider_id}/{selected_model} "
-                f"(${estimated_cost:.4f})"
+                f"Bridge routing: {routing_info['provider_id']}/{routing_info['model_id']} "
+                f"(${routing_info['estimated_cost']:.4f})"
             )
-            
-        except HTTPError as e:
-            logger.error(f"Bridge routing failed: {e}, using fallback")
-            # Fallback to requested model or default
-            selected_model = request.get("model", "llama3.1:8b")
-            provider_id = "fallback"
-            estimated_cost = 0.0
 
-        # Step 4: Forward to bridge for completion
-        try:
-            # Build OpenAI-compatible request
-            llm_request = {
-                "model": selected_model,
+            # Build chat completion request with routed model
+            chat_request = {
+                "model": routing_info["model_id"],
                 "messages": enhanced_messages,
                 "stream": request.get("stream", False),
                 "temperature": request.get("temperature", 0.7),
                 "max_tokens": request.get("max_tokens"),
             }
 
+            # Forward to bridge's chat completion endpoint
             response = await self.bridge_client.post(
-                "/v1/chat/completions", json=llm_request
+                "/v1/chat/completions", json=chat_request
             )
             response.raise_for_status()
             response_data: Dict[str, Any] = response.json()
-            
+
         except HTTPError as e:
-            logger.error(f"Bridge chat completion failed: {e}")
+            logger.error(f"Bridge request failed: {e}")
             raise HTTPException(status_code=502, detail=f"Bridge error: {str(e)}")
 
         # Step 5: Store conversation (async, non-blocking)
@@ -218,30 +172,33 @@ class SekhaProxy:
                 )
             )
 
-        # Step 6: Add metadata about context and routing (v2.0)
+        # Step 6: Add metadata about context and routing
         sekha_metadata = {
             "routing": {
-                "provider_id": provider_id,
-                "model_id": selected_model,
-                "estimated_cost": estimated_cost,
-                "task": task,
+                "provider_id": routing_info.get("provider_id"),
+                "model_id": routing_info.get("model_id"),
+                "provider_type": routing_info.get("provider_type"),
+                "estimated_cost": routing_info.get("estimated_cost"),
+                "reason": routing_info.get("reason"),
             }
         }
         
         if context:
-            sekha_metadata["context_used"] = [
-                {
-                    "label": c.get("metadata", {})
-                    .get("citation", {})
-                    .get("label", "Unknown"),
-                    "folder": c.get("metadata", {})
-                    .get("citation", {})
-                    .get("folder", "Unknown"),
-                }
-                for c in context
-            ]
-            sekha_metadata["context_count"] = len(context)
-        
+            sekha_metadata["context"] = {
+                "messages_used": [
+                    {
+                        "label": c.get("metadata", {})
+                        .get("citation", {})
+                        .get("label", "Unknown"),
+                        "folder": c.get("metadata", {})
+                        .get("citation", {})
+                        .get("folder", "Unknown"),
+                    }
+                    for c in context
+                ],
+                "count": len(context),
+            }
+
         response_data["sekha_metadata"] = sekha_metadata
 
         return response_data
@@ -306,7 +263,7 @@ class SekhaProxy:
 
             # Build metadata
             metadata = self.injector.build_metadata(
-                context_used=context_used, llm_provider="bridge-v2"
+                context_used=context_used, llm_provider="bridge_v2"
             )
 
             # Store via controller
@@ -388,7 +345,7 @@ async def chat_completions(request: Request):
     This is the main proxy endpoint. Point your LLM client here instead of
     directly to Ollama/OpenAI/etc.
     
-    v2.0: Routes through bridge for multi-provider support
+    v2.0: Routes through bridge for multi-provider support.
     """
     if proxy_instance is None:
         raise HTTPException(status_code=503, detail="Proxy not initialized")
@@ -436,12 +393,6 @@ async def info():
         "name": "Sekha Proxy",
         "version": "2.0.0",
         "status": "running",
-        "features": [
-            "Multi-provider routing via bridge",
-            "Automatic context injection",
-            "Vision model detection",
-            "Cost tracking",
-        ],
         "endpoints": {
             "chat": "/v1/chat/completions",
             "health": "/health",
@@ -452,6 +403,13 @@ async def info():
             "auto_inject_context": proxy_instance.config.memory.auto_inject_context,
             "context_budget": proxy_instance.config.memory.context_token_budget,
         },
+        "features": [
+            "Multi-provider routing via bridge",
+            "Automatic context injection",
+            "Vision model routing",
+            "Cost estimation",
+            "Provider fallback",
+        ],
     }
 
 
