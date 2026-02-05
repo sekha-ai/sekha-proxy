@@ -6,8 +6,9 @@ __email__ = "dev@sekha-ai.dev"
 
 import asyncio
 import logging
+import re
 from contextlib import asynccontextmanager
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -24,6 +25,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Image URL pattern for detection
+IMAGE_URL_PATTERN = re.compile(
+    r'https?://[^\s<>"]+\.(?:jpg|jpeg|png|gif|bmp|webp|svg)(?:[?#][^\s<>"]*)?',
+    re.IGNORECASE
+)
+
 
 class SekhaProxy:
     """Main proxy class that handles LLM routing with context injection.
@@ -31,6 +38,7 @@ class SekhaProxy:
     v2.0 Updates:
     - Routes all LLM requests through bridge for multi-provider support
     - Automatically detects vision needs from message content
+    - Enhanced image URL detection with pattern matching
     - Includes routing metadata in responses
     """
 
@@ -62,32 +70,50 @@ class SekhaProxy:
         logger.info(f"  Bridge: {config.llm.bridge_url}")
         logger.info(f"  Controller: {config.controller.url}")
         logger.info(f"  Auto-inject context: {config.memory.auto_inject_context}")
+        logger.info(f"  Enhanced vision detection: enabled")
 
-    def _detect_images_in_messages(self, messages: List[Dict[str, Any]]) -> bool:
+    def _detect_images_in_messages(self, messages: List[Dict[str, Any]]) -> Tuple[bool, int]:
         """Detect if any message contains images.
+        
+        Supports multiple detection methods:
+        1. OpenAI multimodal format (content as list with image_url type)
+        2. Image URLs in text content (matches common image file extensions)
+        3. Base64 data URIs in text content
         
         Args:
             messages: List of message dictionaries
             
         Returns:
-            True if images detected, False otherwise
+            Tuple of (has_images, image_count)
         """
+        image_count = 0
+        
         for msg in messages:
             content = msg.get("content", "")
             
-            # Check if content is a list (multimodal format)
+            # Method 1: Check if content is a list (OpenAI multimodal format)
             if isinstance(content, list):
                 for item in content:
                     if isinstance(item, dict) and item.get("type") == "image_url":
-                        return True
+                        image_count += 1
             
-            # Check for image URLs in text content
+            # Method 2 & 3: Check for images in text content
             if isinstance(content, str):
-                if "image" in content.lower() or "picture" in content.lower():
-                    # Could add more sophisticated image detection here
-                    pass
-                    
-        return False
+                # Detect image URLs with common extensions
+                url_matches = IMAGE_URL_PATTERN.findall(content)
+                image_count += len(url_matches)
+                
+                # Detect base64 data URIs
+                base64_pattern = r'data:image/[a-zA-Z]+;base64,'
+                base64_matches = re.findall(base64_pattern, content)
+                image_count += len(base64_matches)
+        
+        has_images = image_count > 0
+        
+        if has_images:
+            logger.info(f"Detected {image_count} image(s) in messages")
+        
+        return has_images, image_count
 
     async def forward_chat(self, request: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -95,7 +121,7 @@ class SekhaProxy:
 
         v2.0 Changes:
         - Routes through bridge for provider selection
-        - Detects vision needs automatically
+        - Detects vision needs automatically with enhanced detection
         - Includes routing metadata in response
 
         Args:
@@ -145,8 +171,8 @@ class SekhaProxy:
 
         # Step 3: Get optimal routing from bridge (v2.0)
         try:
-            # Detect if images are present
-            has_images = self._detect_images_in_messages(enhanced_messages)
+            # Detect if images are present with enhanced detection
+            has_images, image_count = self._detect_images_in_messages(enhanced_messages)
             
             # Determine task type
             task = "vision" if has_images else "chat_small"
@@ -176,7 +202,7 @@ class SekhaProxy:
             
             logger.info(
                 f"Bridge routed to {provider_id}/{selected_model} "
-                f"(${estimated_cost:.4f})"
+                f"(${estimated_cost:.4f}){' with vision' if has_images else ''}"
             )
             
         except HTTPError as e:
@@ -185,6 +211,8 @@ class SekhaProxy:
             selected_model = request.get("model", "llama3.1:8b")
             provider_id = "fallback"
             estimated_cost = 0.0
+            has_images = False
+            image_count = 0
 
         # Step 4: Forward to bridge for completion
         try:
@@ -227,6 +255,13 @@ class SekhaProxy:
                 "task": task,
             }
         }
+        
+        # Add vision metadata if images detected
+        if has_images:
+            sekha_metadata["vision"] = {
+                "image_count": image_count,
+                "supports_vision": True,
+            }
         
         if context:
             sekha_metadata["context_used"] = [
@@ -388,7 +423,7 @@ async def chat_completions(request: Request):
     This is the main proxy endpoint. Point your LLM client here instead of
     directly to Ollama/OpenAI/etc.
     
-    v2.0: Routes through bridge for multi-provider support
+    v2.0: Routes through bridge for multi-provider support with enhanced vision detection
     """
     if proxy_instance is None:
         raise HTTPException(status_code=503, detail="Proxy not initialized")
@@ -439,7 +474,7 @@ async def info():
         "features": [
             "Multi-provider routing via bridge",
             "Automatic context injection",
-            "Vision model detection",
+            "Enhanced vision detection (URL patterns + multimodal)",
             "Cost tracking",
         ],
         "endpoints": {
