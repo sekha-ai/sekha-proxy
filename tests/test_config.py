@@ -75,7 +75,14 @@ def test_config_validate_bridge_provider() -> None:
 
 def test_config_validate_all_supported_providers() -> None:
     """Test that all supported LLM providers pass validation."""
-    supported_providers = ["ollama", "openai", "anthropic", "google", "cohere", "bridge"]
+    supported_providers = [
+        "ollama",
+        "openai",
+        "anthropic",
+        "google",
+        "cohere",
+        "bridge",
+    ]
 
     for provider in supported_providers:
         config = Config()

@@ -138,7 +138,7 @@ class TestVisionDetection:
     async def test_detect_multiple_image_extensions(self, proxy: SekhaProxy):
         """Test detection of various image file extensions."""
         extensions = ["jpg", "jpeg", "png", "gif", "bmp", "webp", "svg"]
-        
+
         for ext in extensions:
             messages = [
                 {

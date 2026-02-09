@@ -20,17 +20,17 @@ class ProxyConfig:
 @dataclass
 class LLMConfig:
     """LLM Bridge configuration.
-    
+
     In v2.0, the proxy ALWAYS communicates with the bridge.
     The bridge handles all provider routing and model selection.
     """
 
     # Bridge URL (always required)
     bridge_url: str = field(default="http://localhost:5001")
-    
+
     # Request timeout
     timeout: int = field(default=120)
-    
+
     # Optional model preferences (bridge will use these as hints)
     preferred_chat_model: Optional[str] = field(default=None)
     preferred_embedding_model: Optional[str] = field(default=None)

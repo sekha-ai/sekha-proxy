@@ -74,15 +74,13 @@ Use this context to provide more accurate, informed responses. Reference specifi
             # Get message content
             content = msg.get("content", "")
 
-            formatted.append(
-                f"""[Past Conversation {i}]
+            formatted.append(f"""[Past Conversation {i}]
 From: {folder}/{label}
 Date: {timestamp}
 
 {content}
 
----"""
-            )
+---""")
 
         return "\n".join(formatted)
 

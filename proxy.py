@@ -28,13 +28,13 @@ logger = logging.getLogger(__name__)
 # Image URL pattern for detection
 IMAGE_URL_PATTERN = re.compile(
     r'https?://[^\s<>"]+\.(?:jpg|jpeg|png|gif|bmp|webp|svg)(?:[?#][^\s<>"]*)?',
-    re.IGNORECASE
+    re.IGNORECASE,
 )
 
 
 class SekhaProxy:
     """Main proxy class that handles LLM routing with context injection.
-    
+
     v2.0 Updates:
     - Routes all LLM requests through bridge for multi-provider support
     - Automatically detects vision needs from message content
@@ -50,7 +50,7 @@ class SekhaProxy:
         self.bridge_client = AsyncClient(
             base_url=config.llm.bridge_url, timeout=config.llm.timeout
         )
-        
+
         # Controller client
         self.controller_client = AsyncClient(
             base_url=config.controller.url,
@@ -72,47 +72,49 @@ class SekhaProxy:
         logger.info(f"  Auto-inject context: {config.memory.auto_inject_context}")
         logger.info("  Enhanced vision detection: enabled")
 
-    def _detect_images_in_messages(self, messages: List[Dict[str, Any]]) -> Tuple[bool, int]:
+    def _detect_images_in_messages(
+        self, messages: List[Dict[str, Any]]
+    ) -> Tuple[bool, int]:
         """Detect if any message contains images.
-        
+
         Supports multiple detection methods:
         1. OpenAI multimodal format (content as list with image_url type)
         2. Image URLs in text content (matches common image file extensions)
         3. Base64 data URIs in text content
-        
+
         Args:
             messages: List of message dictionaries
-            
+
         Returns:
             Tuple of (has_images, image_count)
         """
         image_count = 0
-        
+
         for msg in messages:
             content = msg.get("content", "")
-            
+
             # Method 1: Check if content is a list (OpenAI multimodal format)
             if isinstance(content, list):
                 for item in content:
                     if isinstance(item, dict) and item.get("type") == "image_url":
                         image_count += 1
-            
+
             # Method 2 & 3: Check for images in text content
             if isinstance(content, str):
                 # Detect image URLs with common extensions
                 url_matches = IMAGE_URL_PATTERN.findall(content)
                 image_count += len(url_matches)
-                
+
                 # Detect base64 data URIs
-                base64_pattern = r'data:image/[a-zA-Z]+;base64,'
+                base64_pattern = r"data:image/[a-zA-Z]+;base64,"
                 base64_matches = re.findall(base64_pattern, content)
                 image_count += len(base64_matches)
-        
+
         has_images = image_count > 0
-        
+
         if has_images:
             logger.info(f"Detected {image_count} image(s) in messages")
-        
+
         return has_images, image_count
 
     async def forward_chat(self, request: Dict[str, Any]) -> Dict[str, Any]:
@@ -173,16 +175,17 @@ class SekhaProxy:
         try:
             # Detect if images are present with enhanced detection
             has_images, image_count = self._detect_images_in_messages(enhanced_messages)
-            
+
             # Determine task type
             task = "vision" if has_images else "chat_small"
-            
+
             # Get preferred model from config or request
             preferred_model = request.get("model") or (
-                self.config.llm.preferred_vision_model if has_images
+                self.config.llm.preferred_vision_model
+                if has_images
                 else self.config.llm.preferred_chat_model
             )
-            
+
             # Route the request
             routing_response = await self.bridge_client.post(
                 "/api/v1/route",
@@ -195,16 +198,16 @@ class SekhaProxy:
             )
             routing_response.raise_for_status()
             routing_data = routing_response.json()
-            
+
             selected_model = routing_data["model_id"]
             provider_id = routing_data["provider_id"]
             estimated_cost = routing_data["estimated_cost"]
-            
+
             logger.info(
                 f"Bridge routed to {provider_id}/{selected_model} "
                 f"(${estimated_cost:.4f}){' with vision' if has_images else ''}"
             )
-            
+
         except HTTPError as e:
             logger.error(f"Bridge routing failed: {e}, using fallback")
             # Fallback to requested model or default
@@ -230,7 +233,7 @@ class SekhaProxy:
             )
             response.raise_for_status()
             response_data: Dict[str, Any] = response.json()
-            
+
         except HTTPError as e:
             logger.error(f"Bridge chat completion failed: {e}")
             raise HTTPException(status_code=502, detail=f"Bridge error: {str(e)}")
@@ -255,14 +258,14 @@ class SekhaProxy:
                 "task": task,
             }
         }
-        
+
         # Add vision metadata if images detected
         if has_images:
             sekha_metadata["vision"] = {
                 "image_count": image_count,
                 "supports_vision": True,
             }
-        
+
         if context:
             sekha_metadata["context_used"] = [
                 {
@@ -276,7 +279,7 @@ class SekhaProxy:
                 for c in context
             ]
             sekha_metadata["context_count"] = len(context)
-        
+
         response_data["sekha_metadata"] = sekha_metadata
 
         return response_data
@@ -422,7 +425,7 @@ async def chat_completions(request: Request):
 
     This is the main proxy endpoint. Point your LLM client here instead of
     directly to Ollama/OpenAI/etc.
-    
+
     v2.0: Routes through bridge for multi-provider support with enhanced vision detection
     """
     if proxy_instance is None:
