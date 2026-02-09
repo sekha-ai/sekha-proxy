@@ -148,7 +148,7 @@ class SekhaProxy:
         last_query = self.injector.extract_last_user_message(user_messages)
 
         # Step 1: Get context from controller (if enabled)
-        context = []
+        context: List[Dict[str, Any]] = []
         if self.config.memory.auto_inject_context and last_query:
             try:
                 context = await self._get_context_from_controller(
@@ -250,7 +250,7 @@ class SekhaProxy:
             )
 
         # Step 6: Add metadata about context and routing (v2.0)
-        sekha_metadata = {
+        sekha_metadata: Dict[str, Any] = {
             "routing": {
                 "provider_id": provider_id,
                 "model_id": selected_model,
