@@ -70,7 +70,7 @@ class SekhaProxy:
         logger.info(f"  Bridge: {config.llm.bridge_url}")
         logger.info(f"  Controller: {config.controller.url}")
         logger.info(f"  Auto-inject context: {config.memory.auto_inject_context}")
-        logger.info(f"  Enhanced vision detection: enabled")
+        logger.info("  Enhanced vision detection: enabled")
 
     def _detect_images_in_messages(self, messages: List[Dict[str, Any]]) -> Tuple[bool, int]:
         """Detect if any message contains images.
