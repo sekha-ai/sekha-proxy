@@ -1,5 +1,7 @@
 """Tests for vision/image detection in proxy."""
 
+from typing import Any, AsyncGenerator, Dict, List
+
 import pytest
 
 from config import Config, ControllerConfig, LLMConfig, MemoryConfig, ProxyConfig
@@ -33,7 +35,7 @@ def proxy_config() -> Config:
 
 
 @pytest.fixture
-async def proxy(proxy_config: Config) -> SekhaProxy:
+async def proxy(proxy_config: Config) -> AsyncGenerator[SekhaProxy, None]:
     """Create proxy instance."""
     instance = SekhaProxy(proxy_config)
     yield instance
@@ -46,7 +48,7 @@ class TestVisionDetection:
     @pytest.mark.asyncio
     async def test_detect_openai_multimodal_format(self, proxy: SekhaProxy):
         """Test detection of OpenAI multimodal format (content as list with image_url)."""
-        messages = [
+        messages: List[Dict[str, Any]] = [
             {
                 "role": "user",
                 "content": [
@@ -67,7 +69,7 @@ class TestVisionDetection:
     @pytest.mark.asyncio
     async def test_detect_multiple_images_multimodal(self, proxy: SekhaProxy):
         """Test detection of multiple images in multimodal format."""
-        messages = [
+        messages: List[Dict[str, Any]] = [
             {
                 "role": "user",
                 "content": [
@@ -92,7 +94,7 @@ class TestVisionDetection:
     @pytest.mark.asyncio
     async def test_detect_image_url_in_text_jpg(self, proxy: SekhaProxy):
         """Test detection of .jpg image URL in text content."""
-        messages = [
+        messages: List[Dict[str, Any]] = [
             {
                 "role": "user",
                 "content": "Please analyze this image: https://example.com/photo.jpg",
@@ -107,7 +109,7 @@ class TestVisionDetection:
     @pytest.mark.asyncio
     async def test_detect_image_url_in_text_png(self, proxy: SekhaProxy):
         """Test detection of .png image URL in text content."""
-        messages = [
+        messages: List[Dict[str, Any]] = [
             {
                 "role": "user",
                 "content": "Check out https://cdn.example.com/images/screenshot.png for reference",
@@ -122,7 +124,7 @@ class TestVisionDetection:
     @pytest.mark.asyncio
     async def test_detect_image_url_with_query_params(self, proxy: SekhaProxy):
         """Test detection of image URL with query parameters."""
-        messages = [
+        messages: List[Dict[str, Any]] = [
             {
                 "role": "user",
                 "content": "See: https://example.com/image.jpg?size=large&format=hd#section",
@@ -140,7 +142,7 @@ class TestVisionDetection:
         extensions = ["jpg", "jpeg", "png", "gif", "bmp", "webp", "svg"]
 
         for ext in extensions:
-            messages = [
+            messages: List[Dict[str, Any]] = [
                 {
                     "role": "user",
                     "content": f"Image at https://example.com/test.{ext}",
@@ -155,7 +157,7 @@ class TestVisionDetection:
     @pytest.mark.asyncio
     async def test_detect_case_insensitive_extensions(self, proxy: SekhaProxy):
         """Test that image detection is case-insensitive."""
-        messages = [
+        messages: List[Dict[str, Any]] = [
             {
                 "role": "user",
                 "content": "Images: https://example.com/photo.JPG and https://example.com/pic.PNG",
@@ -170,7 +172,7 @@ class TestVisionDetection:
     @pytest.mark.asyncio
     async def test_detect_base64_data_uri(self, proxy: SekhaProxy):
         """Test detection of base64 data URI."""
-        messages = [
+        messages: List[Dict[str, Any]] = [
             {
                 "role": "user",
                 "content": "Here's an embedded image: data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUA...",
@@ -185,7 +187,7 @@ class TestVisionDetection:
     @pytest.mark.asyncio
     async def test_detect_multiple_base64_images(self, proxy: SekhaProxy):
         """Test detection of multiple base64 data URIs."""
-        messages = [
+        messages: List[Dict[str, Any]] = [
             {
                 "role": "user",
                 "content": (
@@ -203,7 +205,7 @@ class TestVisionDetection:
     @pytest.mark.asyncio
     async def test_detect_mixed_formats(self, proxy: SekhaProxy):
         """Test detection when mixing different image formats."""
-        messages = [
+        messages: List[Dict[str, Any]] = [
             {
                 "role": "user",
                 "content": [
@@ -232,7 +234,7 @@ class TestVisionDetection:
     @pytest.mark.asyncio
     async def test_detect_across_multiple_messages(self, proxy: SekhaProxy):
         """Test detection of images across multiple messages."""
-        messages = [
+        messages: List[Dict[str, Any]] = [
             {"role": "user", "content": "First image: https://example.com/a.jpg"},
             {"role": "assistant", "content": "I see the first image."},
             {"role": "user", "content": "Second image: https://example.com/b.png"},
@@ -246,7 +248,7 @@ class TestVisionDetection:
     @pytest.mark.asyncio
     async def test_no_images_text_only(self, proxy: SekhaProxy):
         """Test that pure text messages return False."""
-        messages = [
+        messages: List[Dict[str, Any]] = [
             {"role": "user", "content": "What is the capital of France?"},
             {"role": "assistant", "content": "The capital of France is Paris."},
         ]
@@ -259,7 +261,7 @@ class TestVisionDetection:
     @pytest.mark.asyncio
     async def test_no_images_empty_messages(self, proxy: SekhaProxy):
         """Test empty message list."""
-        messages = []
+        messages: List[Dict[str, Any]] = []
 
         has_images, image_count = proxy._detect_images_in_messages(messages)
 
@@ -269,7 +271,7 @@ class TestVisionDetection:
     @pytest.mark.asyncio
     async def test_no_images_missing_content(self, proxy: SekhaProxy):
         """Test messages with missing content field."""
-        messages = [
+        messages: List[Dict[str, Any]] = [
             {"role": "user"},  # No content field
             {"role": "assistant", "content": ""},  # Empty content
         ]
@@ -282,7 +284,7 @@ class TestVisionDetection:
     @pytest.mark.asyncio
     async def test_false_positive_prevention_image_word(self, proxy: SekhaProxy):
         """Test that the word 'image' doesn't trigger false positives."""
-        messages = [
+        messages: List[Dict[str, Any]] = [
             {
                 "role": "user",
                 "content": "Tell me about image processing without showing any images.",
@@ -297,7 +299,7 @@ class TestVisionDetection:
     @pytest.mark.asyncio
     async def test_false_positive_prevention_non_image_url(self, proxy: SekhaProxy):
         """Test that non-image URLs don't trigger detection."""
-        messages = [
+        messages: List[Dict[str, Any]] = [
             {
                 "role": "user",
                 "content": "Check this website: https://example.com/page.html",
@@ -312,7 +314,7 @@ class TestVisionDetection:
     @pytest.mark.asyncio
     async def test_multimodal_format_with_non_image_items(self, proxy: SekhaProxy):
         """Test multimodal content with only text items (no images)."""
-        messages = [
+        messages: List[Dict[str, Any]] = [
             {
                 "role": "user",
                 "content": [
@@ -330,7 +332,7 @@ class TestVisionDetection:
     @pytest.mark.asyncio
     async def test_http_and_https_urls(self, proxy: SekhaProxy):
         """Test detection of both HTTP and HTTPS image URLs."""
-        messages = [
+        messages: List[Dict[str, Any]] = [
             {
                 "role": "user",
                 "content": "HTTP: http://example.com/image.jpg and HTTPS: https://secure.com/pic.png",
@@ -345,7 +347,7 @@ class TestVisionDetection:
     @pytest.mark.asyncio
     async def test_url_with_special_characters(self, proxy: SekhaProxy):
         """Test detection of image URLs with special characters in path."""
-        messages = [
+        messages: List[Dict[str, Any]] = [
             {
                 "role": "user",
                 "content": "Image: https://example.com/user/photos/vacation%202024/photo-001.jpg",
@@ -360,7 +362,7 @@ class TestVisionDetection:
     @pytest.mark.asyncio
     async def test_image_count_accuracy(self, proxy: SekhaProxy):
         """Test that image count is accurate for complex scenarios."""
-        messages = [
+        messages: List[Dict[str, Any]] = [
             {
                 "role": "user",
                 "content": [
