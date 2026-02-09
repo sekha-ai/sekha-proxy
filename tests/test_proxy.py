@@ -53,7 +53,7 @@ async def test_context_injection(mock_config: Config) -> None:
 
     # Mock bridge client (v2.0: bridge_client instead of llm_client)
     proxy.bridge_client = AsyncMock()
-    
+
     # Mock routing response
     routing_response_data = {
         "model_id": "llama3.1:8b",
@@ -64,7 +64,7 @@ async def test_context_injection(mock_config: Config) -> None:
     routing_mock.status_code = 200
     routing_mock.json = MagicMock(return_value=routing_response_data)
     routing_mock.raise_for_status = MagicMock()
-    
+
     # Mock chat completion response
     llm_response = {
         "choices": [
@@ -75,14 +75,14 @@ async def test_context_injection(mock_config: Config) -> None:
     llm_mock_response.status_code = 200
     llm_mock_response.json = MagicMock(return_value=llm_response)  # Synchronous!
     llm_mock_response.raise_for_status = MagicMock()  # Synchronous!
-    
+
     # Setup bridge client to return different responses based on endpoint
     async def bridge_post_side_effect(endpoint, **kwargs):
         if "/route" in endpoint:
             return routing_mock
         else:  # /v1/chat/completions
             return llm_mock_response
-    
+
     proxy.bridge_client.post = AsyncMock(side_effect=bridge_post_side_effect)
 
     # Test request
@@ -96,7 +96,7 @@ async def test_context_injection(mock_config: Config) -> None:
     # Verify response includes metadata
     assert "sekha_metadata" in response
     assert response["sekha_metadata"]["context_count"] == 1
-    
+
     # Verify routing metadata (v2.0)
     assert "routing" in response["sekha_metadata"]
     assert response["sekha_metadata"]["routing"]["provider_id"] == "ollama"
@@ -121,7 +121,7 @@ async def test_privacy_exclusion(mock_config: Config) -> None:
 
     # Mock bridge client (v2.0)
     proxy.bridge_client = AsyncMock()
-    
+
     # Mock routing response
     routing_response_data = {
         "model_id": "llama3.1:8b",
@@ -132,7 +132,7 @@ async def test_privacy_exclusion(mock_config: Config) -> None:
     routing_mock.status_code = 200
     routing_mock.json = MagicMock(return_value=routing_response_data)
     routing_mock.raise_for_status = MagicMock()
-    
+
     # Mock chat completion response
     llm_response = {
         "choices": [
@@ -148,14 +148,14 @@ async def test_privacy_exclusion(mock_config: Config) -> None:
     llm_mock_response.status_code = 200
     llm_mock_response.json = MagicMock(return_value=llm_response)  # Synchronous!
     llm_mock_response.raise_for_status = MagicMock()  # Synchronous!
-    
+
     # Setup bridge client responses
     async def bridge_post_side_effect(endpoint, **kwargs):
         if "/route" in endpoint:
             return routing_mock
         else:
             return llm_mock_response
-    
+
     proxy.bridge_client.post = AsyncMock(side_effect=bridge_post_side_effect)
 
     # Test request with folder parameter
@@ -203,11 +203,11 @@ async def test_bridge_architecture() -> None:
     # Verify bridge client is configured
     assert proxy.bridge_client is not None
     assert proxy.bridge_client.base_url == "http://bridge:5001"
-    
+
     # Verify health monitor uses bridge (v2.0: proxy always talks to bridge)
     assert proxy.health_monitor.llm_provider == "bridge"
     assert proxy.health_monitor.llm_url == "http://bridge:5001"
-    
+
     # Verify config contains model preferences
     assert proxy.config.llm.preferred_chat_model == "llama3.1:8b"
     assert proxy.config.llm.preferred_vision_model == "gpt-4o"
@@ -239,7 +239,7 @@ async def test_vision_routing() -> None:
 
     # Mock bridge client
     proxy.bridge_client = AsyncMock()
-    
+
     # Mock routing response for vision task
     routing_response_data = {
         "model_id": "gpt-4o",
@@ -250,7 +250,7 @@ async def test_vision_routing() -> None:
     routing_mock.status_code = 200
     routing_mock.json = MagicMock(return_value=routing_response_data)
     routing_mock.raise_for_status = MagicMock()
-    
+
     # Mock chat completion response
     llm_response = {
         "choices": [
@@ -261,7 +261,7 @@ async def test_vision_routing() -> None:
     llm_mock_response.status_code = 200
     llm_mock_response.json = MagicMock(return_value=llm_response)
     llm_mock_response.raise_for_status = MagicMock()
-    
+
     # Setup bridge client responses
     async def bridge_post_side_effect(endpoint, **kwargs):
         if "/route" in endpoint:
@@ -272,7 +272,7 @@ async def test_vision_routing() -> None:
             return routing_mock
         else:
             return llm_mock_response
-    
+
     proxy.bridge_client.post = AsyncMock(side_effect=bridge_post_side_effect)
 
     # Test request with image URL
@@ -292,7 +292,7 @@ async def test_vision_routing() -> None:
     assert "vision" in response["sekha_metadata"]
     assert response["sekha_metadata"]["vision"]["image_count"] == 1
     assert response["sekha_metadata"]["vision"]["supports_vision"] is True
-    
+
     # Verify routing to vision model
     assert response["sekha_metadata"]["routing"]["model_id"] == "gpt-4o"
     assert response["sekha_metadata"]["routing"]["provider_id"] == "openai"

@@ -99,7 +99,7 @@ async def test_bridge_http_error(test_config: Config) -> None:
     routing_mock.status_code = 200
     routing_mock.json = MagicMock(return_value=routing_response_data)
     routing_mock.raise_for_status = MagicMock()
-    
+
     # Mock bridge completion to return error status
     mock_completion_response = AsyncMock()
     mock_completion_response.status_code = 500
@@ -110,14 +110,14 @@ async def test_bridge_http_error(test_config: Config) -> None:
             response=mock_completion_response,
         )
     )
-    
+
     # Setup bridge client responses
     async def bridge_post_side_effect(endpoint, **kwargs):
         if "/route" in endpoint:
             return routing_mock
         else:  # /v1/chat/completions
             return mock_completion_response
-    
+
     proxy.bridge_client = AsyncMock()  # type: ignore[assignment]
     proxy.bridge_client.post = AsyncMock(side_effect=bridge_post_side_effect)  # type: ignore[method-assign]
 
@@ -152,7 +152,7 @@ async def test_controller_failure_continues(test_config: Config) -> None:
     routing_mock.status_code = 200
     routing_mock.json = MagicMock(return_value=routing_response_data)
     routing_mock.raise_for_status = MagicMock()
-    
+
     llm_response: Dict[str, Any] = {
         "choices": [{"message": {"role": "assistant", "content": "Response"}}]
     }
@@ -160,13 +160,13 @@ async def test_controller_failure_continues(test_config: Config) -> None:
     mock_completion_response.status_code = 200
     mock_completion_response.json = MagicMock(return_value=llm_response)
     mock_completion_response.raise_for_status = MagicMock()
-    
+
     async def bridge_post_side_effect(endpoint, **kwargs):
         if "/route" in endpoint:
             return routing_mock
         else:
             return mock_completion_response
-    
+
     proxy.bridge_client = AsyncMock()  # type: ignore[assignment]
     proxy.bridge_client.post = AsyncMock(side_effect=bridge_post_side_effect)  # type: ignore[method-assign]
 
@@ -199,7 +199,7 @@ async def test_context_disabled(test_config: Config) -> None:
     routing_mock.status_code = 200
     routing_mock.json = MagicMock(return_value=routing_response_data)
     routing_mock.raise_for_status = MagicMock()
-    
+
     llm_response: Dict[str, Any] = {
         "choices": [{"message": {"role": "assistant", "content": "Response"}}]
     }
@@ -207,13 +207,13 @@ async def test_context_disabled(test_config: Config) -> None:
     mock_completion_response.status_code = 200
     mock_completion_response.json = MagicMock(return_value=llm_response)
     mock_completion_response.raise_for_status = MagicMock()
-    
+
     async def bridge_post_side_effect(endpoint, **kwargs):
         if "/route" in endpoint:
             return routing_mock
         else:
             return mock_completion_response
-    
+
     proxy.bridge_client = AsyncMock()  # type: ignore[assignment]
     proxy.bridge_client.post = AsyncMock(side_effect=bridge_post_side_effect)  # type: ignore[method-assign]
 
@@ -249,7 +249,7 @@ async def test_controller_non_200_status(test_config: Config) -> None:
     routing_mock.status_code = 200
     routing_mock.json = MagicMock(return_value=routing_response_data)
     routing_mock.raise_for_status = MagicMock()
-    
+
     llm_response: Dict[str, Any] = {
         "choices": [{"message": {"role": "assistant", "content": "Response"}}]
     }
@@ -257,13 +257,13 @@ async def test_controller_non_200_status(test_config: Config) -> None:
     mock_completion_response.status_code = 200
     mock_completion_response.json = MagicMock(return_value=llm_response)
     mock_completion_response.raise_for_status = MagicMock()
-    
+
     async def bridge_post_side_effect(endpoint, **kwargs):
         if "/route" in endpoint:
             return routing_mock
         else:
             return mock_completion_response
-    
+
     proxy.bridge_client = AsyncMock()  # type: ignore[assignment]
     proxy.bridge_client.post = AsyncMock(side_effect=bridge_post_side_effect)  # type: ignore[method-assign]
 
@@ -302,7 +302,7 @@ async def test_store_conversation_failure(test_config: Config) -> None:
     routing_mock.status_code = 200
     routing_mock.json = MagicMock(return_value=routing_response_data)
     routing_mock.raise_for_status = MagicMock()
-    
+
     llm_response: Dict[str, Any] = {
         "choices": [{"message": {"role": "assistant", "content": "Response"}}]
     }
@@ -310,13 +310,13 @@ async def test_store_conversation_failure(test_config: Config) -> None:
     mock_completion_response.status_code = 200
     mock_completion_response.json = MagicMock(return_value=llm_response)
     mock_completion_response.raise_for_status = MagicMock()
-    
+
     async def bridge_post_side_effect(endpoint, **kwargs):
         if "/route" in endpoint:
             return routing_mock
         else:
             return mock_completion_response
-    
+
     proxy.bridge_client = AsyncMock()  # type: ignore[assignment]
     proxy.bridge_client.post = AsyncMock(side_effect=bridge_post_side_effect)  # type: ignore[method-assign]
 
@@ -352,19 +352,19 @@ async def test_no_choices_in_llm_response(test_config: Config) -> None:
     routing_mock.status_code = 200
     routing_mock.json = MagicMock(return_value=routing_response_data)
     routing_mock.raise_for_status = MagicMock()
-    
+
     llm_response: Dict[str, Any] = {}  # Missing 'choices'
     mock_completion_response = AsyncMock()
     mock_completion_response.status_code = 200
     mock_completion_response.json = MagicMock(return_value=llm_response)
     mock_completion_response.raise_for_status = MagicMock()
-    
+
     async def bridge_post_side_effect(endpoint, **kwargs):
         if "/route" in endpoint:
             return routing_mock
         else:
             return mock_completion_response
-    
+
     proxy.bridge_client = AsyncMock()  # type: ignore[assignment]
     proxy.bridge_client.post = AsyncMock(side_effect=bridge_post_side_effect)  # type: ignore[method-assign]
 
@@ -394,10 +394,8 @@ async def test_bridge_routing_fallback(test_config: Config) -> None:
 
     # Mock bridge routing to fail but completion to succeed
     routing_mock = AsyncMock()
-    routing_mock.raise_for_status = MagicMock(
-        side_effect=HTTPError("Routing failed")
-    )
-    
+    routing_mock.raise_for_status = MagicMock(side_effect=HTTPError("Routing failed"))
+
     llm_response: Dict[str, Any] = {
         "choices": [{"message": {"role": "assistant", "content": "Response"}}]
     }
@@ -405,13 +403,13 @@ async def test_bridge_routing_fallback(test_config: Config) -> None:
     mock_completion_response.status_code = 200
     mock_completion_response.json = MagicMock(return_value=llm_response)
     mock_completion_response.raise_for_status = MagicMock()
-    
+
     async def bridge_post_side_effect(endpoint, **kwargs):
         if "/route" in endpoint:
             return routing_mock
         else:  # Falls back to direct completion
             return mock_completion_response
-    
+
     proxy.bridge_client = AsyncMock()  # type: ignore[assignment]
     proxy.bridge_client.post = AsyncMock(side_effect=bridge_post_side_effect)  # type: ignore[method-assign]
 
