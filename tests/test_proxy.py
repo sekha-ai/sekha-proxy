@@ -170,9 +170,9 @@ async def test_privacy_exclusion(mock_config: Config) -> None:
     controller_call = proxy.controller_client.post.call_args
     assert controller_call is not None
 
-    # Verify no context was used (no sekha_metadata key or context_count = 0)
-    if "sekha_metadata" in response:
-        assert response["sekha_metadata"]["context_count"] == 0
+    # v2.0: context_count only present when context exists, use .get() with default
+    assert "sekha_metadata" in response
+    assert response["sekha_metadata"].get("context_count", 0) == 0
 
     await proxy.close()
 
