@@ -1,6 +1,6 @@
 """Sekha Proxy - Intelligent LLM routing with automatic context injection"""
 
-__version__ = "2.0.0"
+__version__ = "0.2.0"
 __author__ = "Sekha AI"
 __email__ = "dev@sekha-ai.dev"
 
@@ -35,7 +35,7 @@ IMAGE_URL_PATTERN = re.compile(
 class SekhaProxy:
     """Main proxy class that handles LLM routing with context injection.
 
-    v2.0 Updates:
+    v0.2.0 Updates:
     - Routes all LLM requests through bridge for multi-provider support
     - Automatically detects vision needs from message content
     - Enhanced image URL detection with pattern matching
@@ -46,7 +46,7 @@ class SekhaProxy:
         self.config = config
         self.injector = ContextInjector()
 
-        # Bridge client (v2.0: all LLM requests go through bridge)
+        # Bridge client (v0.2.0: all LLM requests go through bridge)
         self.bridge_client = AsyncClient(
             base_url=config.llm.bridge_url, timeout=config.llm.timeout
         )
@@ -63,10 +63,10 @@ class SekhaProxy:
             controller_url=config.controller.url,
             llm_url=config.llm.bridge_url,  # Monitor bridge, not direct LLM
             controller_api_key=config.controller.api_key,
-            llm_provider="bridge",  # v2.0: proxy always talks to bridge
+            llm_provider="bridge",  # v0.2.0: proxy always talks to bridge
         )
 
-        logger.info("Sekha Proxy v2.0 initialized:")
+        logger.info("Sekha Proxy v0.2.0 initialized:")
         logger.info(f"  Bridge: {config.llm.bridge_url}")
         logger.info(f"  Controller: {config.controller.url}")
         logger.info(f"  Auto-inject context: {config.memory.auto_inject_context}")
@@ -121,7 +121,7 @@ class SekhaProxy:
         """
         Main proxy logic - leverages bridge routing and controller intelligence.
 
-        v2.0 Changes:
+        v0.2.0 Changes:
         - Routes through bridge for provider selection
         - Detects vision needs automatically with enhanced detection
         - Includes routing metadata in response
@@ -171,7 +171,7 @@ class SekhaProxy:
         else:
             enhanced_messages = user_messages
 
-        # Step 3: Get optimal routing from bridge (v2.0)
+        # Step 3: Get optimal routing from bridge (v0.2.0)
         try:
             # Detect if images are present with enhanced detection
             has_images, image_count = self._detect_images_in_messages(enhanced_messages)
@@ -249,7 +249,7 @@ class SekhaProxy:
                 )
             )
 
-        # Step 6: Add metadata about context and routing (v2.0)
+        # Step 6: Add metadata about context and routing (v0.2.0)
         sekha_metadata: Dict[str, Any] = {
             "routing": {
                 "provider_id": provider_id,
@@ -344,7 +344,7 @@ class SekhaProxy:
 
             # Build metadata
             metadata = self.injector.build_metadata(
-                context_used=context_used, llm_provider="bridge-v2"
+                context_used=context_used, llm_provider="bridge-v0.2"
             )
 
             # Store via controller
@@ -397,7 +397,7 @@ async def lifespan(app: FastAPI):
 
     # Initialize proxy
     proxy_instance = SekhaProxy(config)
-    logger.info("Sekha Proxy v2.0 started")
+    logger.info("Sekha Proxy v0.2.0 started")
 
     yield
 
@@ -409,8 +409,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Sekha Proxy",
-    description="Intelligent LLM routing with automatic context injection (v2.0)",
-    version="2.0.0",
+    description="Intelligent LLM routing with automatic context injection (v0.2.0)",
+    version="0.2.0",
     lifespan=lifespan,
 )
 
@@ -426,7 +426,7 @@ async def chat_completions(request: Request):
     This is the main proxy endpoint. Point your LLM client here instead of
     directly to Ollama/OpenAI/etc.
 
-    v2.0: Routes through bridge for multi-provider support with enhanced vision detection
+    v0.2.0: Routes through bridge for multi-provider support with enhanced vision detection
     """
     if proxy_instance is None:
         raise HTTPException(status_code=503, detail="Proxy not initialized")
@@ -472,7 +472,7 @@ async def info():
     """API info endpoint."""
     return {
         "name": "Sekha Proxy",
-        "version": "2.0.0",
+        "version": "0.2.0",
         "status": "running",
         "features": [
             "Multi-provider routing via bridge",
