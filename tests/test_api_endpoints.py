@@ -11,7 +11,7 @@ def mock_proxy_instance():
     """Mock proxy instance for testing endpoints."""
     mock = MagicMock()
     mock.config = MagicMock()
-    mock.config.llm.provider = "ollama"
+    mock.config.llm.bridge_url = "http://mock-bridge:5001"  # v0.2.0: bridge_url
     mock.config.memory.auto_inject_context = True
     mock.config.memory.context_token_budget = 4000
     mock.health_monitor = MagicMock()
@@ -31,7 +31,7 @@ async def test_info_endpoint(mock_proxy_instance) -> None:
     assert response.status_code == 200
     data = response.json()
     assert data["name"] == "Sekha Proxy"
-    assert data["version"] == "1.0.0"
+    assert data["version"] == "0.2.0"  # v0.2.0 version
     assert "endpoints" in data
     assert "config" in data
 

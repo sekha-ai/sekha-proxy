@@ -11,8 +11,7 @@ def test_config_default_values() -> None:
 
     assert config.proxy.host == "0.0.0.0"
     assert config.proxy.port == 8081
-    assert config.llm.provider == "ollama"
-    assert config.llm.url == "http://localhost:11434"
+    assert config.llm.bridge_url == "http://localhost:5001"
     assert config.llm.timeout == 120
     assert config.controller.url == "http://localhost:8080"
     assert config.controller.timeout == 30
@@ -26,18 +25,20 @@ def test_config_from_env(monkeypatch) -> None:
     """Test loading configuration from environment variables."""
     # Set environment variables
     monkeypatch.setenv("PROXY_PORT", "9090")
-    monkeypatch.setenv("LLM_PROVIDER", "openai")
-    monkeypatch.setenv("LLM_URL", "https://api.openai.com")
+    monkeypatch.setenv("LLM_BRIDGE_URL", "http://bridge:5001")
     monkeypatch.setenv("CONTROLLER_URL", "http://controller:8080")
     monkeypatch.setenv("CONTROLLER_API_KEY", "secret-key-123")
     monkeypatch.setenv("CONTEXT_TOKEN_BUDGET", "5000")
     monkeypatch.setenv("EXCLUDED_FOLDERS", "/private,/secret")
+    monkeypatch.setenv("PREFERRED_CHAT_MODEL", "llama3.1:8b")
+    monkeypatch.setenv("PREFERRED_VISION_MODEL", "gpt-4o")
 
     config = Config.from_env()
 
     assert config.proxy.port == 9090
-    assert config.llm.provider == "openai"
-    assert config.llm.url == "https://api.openai.com"
+    assert config.llm.bridge_url == "http://bridge:5001"
+    assert config.llm.preferred_chat_model == "llama3.1:8b"
+    assert config.llm.preferred_vision_model == "gpt-4o"
     assert config.controller.url == "http://controller:8080"
     assert config.controller.api_key == "secret-key-123"
     assert config.memory.context_token_budget == 5000
@@ -53,36 +54,13 @@ def test_config_validate_requires_api_key() -> None:
         config.validate()
 
 
-def test_config_validate_llm_provider() -> None:
-    """Test that validation checks LLM provider."""
+def test_config_validate_requires_bridge_url() -> None:
+    """Test that validation requires bridge URL."""
     config = Config()
     config.controller.api_key = "test-key"
-    config.llm.provider = "invalid-provider"
+    config.llm.bridge_url = ""  # Empty bridge URL
 
-    with pytest.raises(ValueError, match="Unsupported LLM provider"):
-        config.validate()
-
-
-def test_config_validate_bridge_provider() -> None:
-    """Test that validation accepts bridge as a valid provider."""
-    config = Config()
-    config.controller.api_key = "test-key"
-    config.llm.provider = "bridge"
-
-    # Should not raise
-    config.validate()
-
-
-def test_config_validate_all_supported_providers() -> None:
-    """Test that all supported LLM providers pass validation."""
-    supported_providers = ["ollama", "openai", "anthropic", "google", "cohere", "bridge"]
-
-    for provider in supported_providers:
-        config = Config()
-        config.controller.api_key = "test-key"
-        config.llm.provider = provider
-
-        # Should not raise for any supported provider
+    with pytest.raises(ValueError, match="LLM_BRIDGE_URL is required"):
         config.validate()
 
 
@@ -110,7 +88,7 @@ def test_config_validate_success() -> None:
     """Test that valid configuration passes validation."""
     config = Config()
     config.controller.api_key = "test-key"
-    config.llm.provider = "ollama"
+    config.llm.bridge_url = "http://localhost:5001"
     config.memory.context_token_budget = 2000
     config.memory.context_limit = 5
 
@@ -122,10 +100,10 @@ def test_config_custom_values() -> None:
     """Test creating config with custom values."""
     config = Config(
         llm=LLMConfig(
-            provider="openai",
-            url="https://api.openai.com",
-            api_key="sk-test-123",
+            bridge_url="http://custom-bridge:5001",
             timeout=60,
+            preferred_chat_model="llama3.1:8b",
+            preferred_vision_model="gpt-4o",
         ),
         controller=ControllerConfig(
             url="http://custom:8080", api_key="my-key", timeout=15
@@ -139,9 +117,10 @@ def test_config_custom_values() -> None:
         ),
     )
 
-    assert config.llm.provider == "openai"
-    assert config.llm.url == "https://api.openai.com"
-    assert config.llm.api_key == "sk-test-123"
+    assert config.llm.bridge_url == "http://custom-bridge:5001"
+    assert config.llm.timeout == 60
+    assert config.llm.preferred_chat_model == "llama3.1:8b"
+    assert config.llm.preferred_vision_model == "gpt-4o"
     assert config.controller.url == "http://custom:8080"
     assert config.controller.api_key == "my-key"
     assert config.memory.auto_inject_context is False
@@ -181,3 +160,22 @@ def test_config_empty_list_parsing(monkeypatch) -> None:
     config = Config.from_env()
 
     assert config.memory.excluded_folders == []
+
+
+def test_config_optional_model_preferences() -> None:
+    """Test that model preferences are optional."""
+    config = Config(
+        llm=LLMConfig(
+            bridge_url="http://bridge:5001",
+            timeout=120,
+            # No model preferences set
+        ),
+        controller=ControllerConfig(url="http://controller:8080", api_key="test-key"),
+    )
+
+    assert config.llm.preferred_chat_model is None
+    assert config.llm.preferred_embedding_model is None
+    assert config.llm.preferred_vision_model is None
+
+    # Should validate successfully
+    config.validate()

@@ -19,12 +19,22 @@ class ProxyConfig:
 
 @dataclass
 class LLMConfig:
-    """LLM provider configuration."""
+    """LLM Bridge configuration.
 
-    provider: str = field(default="ollama")
-    url: str = field(default="http://localhost:11434")
-    api_key: Optional[str] = field(default=None)
-    timeout: int = field(default=120)  # 2 minutes for LLM responses
+    In v2.0, the proxy ALWAYS communicates with the bridge.
+    The bridge handles all provider routing and model selection.
+    """
+
+    # Bridge URL (always required)
+    bridge_url: str = field(default="http://localhost:5001")
+
+    # Request timeout
+    timeout: int = field(default=120)
+
+    # Optional model preferences (bridge will use these as hints)
+    preferred_chat_model: Optional[str] = field(default=None)
+    preferred_embedding_model: Optional[str] = field(default=None)
+    preferred_vision_model: Optional[str] = field(default=None)
 
 
 @dataclass
@@ -74,10 +84,11 @@ class Config:
                 port=int(os.getenv("PROXY_PORT", "8081")),
             ),
             llm=LLMConfig(
-                provider=os.getenv("LLM_PROVIDER", "ollama"),
-                url=os.getenv("LLM_URL", "http://localhost:11434"),
-                api_key=os.getenv("LLM_API_KEY"),
+                bridge_url=os.getenv("LLM_BRIDGE_URL", "http://localhost:5001"),
                 timeout=int(os.getenv("LLM_TIMEOUT", "120")),
+                preferred_chat_model=os.getenv("PREFERRED_CHAT_MODEL"),
+                preferred_embedding_model=os.getenv("PREFERRED_EMBEDDING_MODEL"),
+                preferred_vision_model=os.getenv("PREFERRED_VISION_MODEL"),
             ),
             controller=ControllerConfig(
                 url=os.getenv("CONTROLLER_URL", "http://localhost:8080"),
@@ -114,15 +125,8 @@ class Config:
         if not self.controller.api_key:
             raise ValueError("CONTROLLER_API_KEY is required")
 
-        if self.llm.provider not in [
-            "ollama",
-            "openai",
-            "anthropic",
-            "google",
-            "cohere",
-            "bridge",  # Added to support sekha-llm-bridge service
-        ]:
-            raise ValueError(f"Unsupported LLM provider: {self.llm.provider}")
+        if not self.llm.bridge_url:
+            raise ValueError("LLM_BRIDGE_URL is required")
 
         if self.memory.context_token_budget < 100:
             raise ValueError("context_token_budget must be at least 100")
