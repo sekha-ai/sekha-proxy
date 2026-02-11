@@ -177,7 +177,7 @@ class SekhaProxy:
             has_images, image_count = self._detect_images_in_messages(enhanced_messages)
 
             # Determine task type
-            task = "vision" if has_images else "chat_small"
+            task = "vision" if has_images else "chat_smart"
 
             # Get preferred model from config or request
             preferred_model = request.get("model") or (
