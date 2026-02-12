@@ -4,8 +4,8 @@ from typing import Any, AsyncGenerator, Dict, List
 
 import pytest
 
-from config import Config, ControllerConfig, LLMConfig, MemoryConfig, ProxyConfig
-from proxy import SekhaProxy
+from sekha_proxy.config import Config, ControllerConfig, LLMConfig, MemoryConfig, ProxyConfig
+from sekha_proxy.proxy import SekhaProxy
 
 
 @pytest.fixture
