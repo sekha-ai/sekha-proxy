@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from health import HealthMonitor
+from sekha_proxy.health import HealthMonitor
 
 
 @pytest.mark.asyncio
