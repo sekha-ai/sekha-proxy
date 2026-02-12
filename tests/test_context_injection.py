@@ -2,7 +2,7 @@
 
 import pytest
 
-from context_injection import ContextInjector
+from sekha_proxy.context_injection import ContextInjector
 
 
 @pytest.fixture
