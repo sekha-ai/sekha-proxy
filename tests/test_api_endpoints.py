@@ -21,8 +21,8 @@ def mock_proxy_instance():
 @pytest.mark.asyncio
 async def test_info_endpoint(mock_proxy_instance) -> None:
     """Test /api/info endpoint."""
-    with patch("proxy.proxy_instance", mock_proxy_instance):
-        from proxy import app
+    with patch("sekha_proxy.proxy.proxy_instance", mock_proxy_instance):
+        from sekha_proxy.proxy import app
 
         transport = ASGITransport(app=app)  # type: ignore[arg-type]
         async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -43,8 +43,8 @@ async def test_health_endpoint_healthy(mock_proxy_instance) -> None:
         return_value={"status": "healthy", "controller": "ok", "llm": "ok"}
     )
 
-    with patch("proxy.proxy_instance", mock_proxy_instance):
-        from proxy import app
+    with patch("sekha_proxy.proxy.proxy_instance", mock_proxy_instance):
+        from sekha_proxy.proxy import app
 
         transport = ASGITransport(app=app)  # type: ignore[arg-type]
         async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -62,8 +62,8 @@ async def test_health_endpoint_unhealthy(mock_proxy_instance) -> None:
         return_value={"status": "unhealthy", "controller": "error", "llm": "ok"}
     )
 
-    with patch("proxy.proxy_instance", mock_proxy_instance):
-        from proxy import app
+    with patch("sekha_proxy.proxy.proxy_instance", mock_proxy_instance):
+        from sekha_proxy.proxy import app
 
         transport = ASGITransport(app=app)  # type: ignore[arg-type]
         async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -81,8 +81,8 @@ async def test_health_endpoint_error(mock_proxy_instance) -> None:
         side_effect=Exception("Health check failed")
     )
 
-    with patch("proxy.proxy_instance", mock_proxy_instance):
-        from proxy import app
+    with patch("sekha_proxy.proxy.proxy_instance", mock_proxy_instance):
+        from sekha_proxy.proxy import app
 
         transport = ASGITransport(app=app)  # type: ignore[arg-type]
         async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -101,8 +101,8 @@ async def test_chat_completions_success(mock_proxy_instance) -> None:
     }
     mock_proxy_instance.forward_chat = AsyncMock(return_value=mock_response)
 
-    with patch("proxy.proxy_instance", mock_proxy_instance):
-        from proxy import app
+    with patch("sekha_proxy.proxy.proxy_instance", mock_proxy_instance):
+        from sekha_proxy.proxy import app
 
         transport = ASGITransport(app=app)  # type: ignore[arg-type]
         async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -120,8 +120,8 @@ async def test_chat_completions_success(mock_proxy_instance) -> None:
 @pytest.mark.asyncio
 async def test_chat_completions_proxy_not_initialized() -> None:
     """Test chat completions when proxy not initialized."""
-    with patch("proxy.proxy_instance", None):
-        from proxy import app
+    with patch("sekha_proxy.proxy.proxy_instance", None):
+        from sekha_proxy.proxy import app
 
         transport = ASGITransport(app=app)  # type: ignore[arg-type]
         async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -141,8 +141,8 @@ async def test_chat_completions_invalid_json(mock_proxy_instance) -> None:
     Note: FastAPI/Starlette returns 500 for JSON decode errors,
     not 422 (which is for validation errors on valid JSON).
     """
-    with patch("proxy.proxy_instance", mock_proxy_instance):
-        from proxy import app
+    with patch("sekha_proxy.proxy.proxy_instance", mock_proxy_instance):
+        from sekha_proxy.proxy import app
 
         transport = ASGITransport(app=app)  # type: ignore[arg-type]
         async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -163,8 +163,8 @@ async def test_chat_completions_internal_error(mock_proxy_instance) -> None:
         side_effect=Exception("Internal error")
     )
 
-    with patch("proxy.proxy_instance", mock_proxy_instance):
-        from proxy import app
+    with patch("sekha_proxy.proxy.proxy_instance", mock_proxy_instance):
+        from sekha_proxy.proxy import app
 
         transport = ASGITransport(app=app)  # type: ignore[arg-type]
         async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -179,7 +179,7 @@ async def test_chat_completions_internal_error(mock_proxy_instance) -> None:
 @pytest.mark.asyncio
 async def test_root_redirect() -> None:
     """Test root endpoint redirects to UI."""
-    from proxy import app
+    from sekha_proxy.proxy import app
 
     transport = ASGITransport(app=app)  # type: ignore[arg-type]
     async with AsyncClient(
@@ -200,8 +200,8 @@ async def test_chat_with_all_parameters(mock_proxy_instance) -> None:
     }
     mock_proxy_instance.forward_chat = AsyncMock(return_value=mock_response)
 
-    with patch("proxy.proxy_instance", mock_proxy_instance):
-        from proxy import app
+    with patch("sekha_proxy.proxy.proxy_instance", mock_proxy_instance):
+        from sekha_proxy.proxy import app
 
         transport = ASGITransport(app=app)  # type: ignore[arg-type]
         async with AsyncClient(transport=transport, base_url="http://test") as client:
