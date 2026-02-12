@@ -1,6 +1,11 @@
 # Dockerfile for Sekha Proxy
 FROM python:3.14-slim
 
+# OCI labels for GitHub Container Registry
+LABEL org.opencontainers.image.source=https://github.com/sekha-ai/sekha-proxy
+LABEL org.opencontainers.image.description="OpenAI-compatible proxy with context injection and web UI"
+LABEL org.opencontainers.image.licenses=AGPL-3.0
+
 WORKDIR /app
 
 # Install system dependencies
