@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "sekha-proxy"
-version = "0.1.0"
+version = "0.2.0"
 description = "Intelligent LLM routing proxy with automatic context injection for Sekha AI memory"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -54,18 +54,18 @@ Issues = "https://github.com/sekha-ai/sekha-proxy/issues"
 Changelog = "https://github.com/sekha-ai/sekha-proxy/blob/main/CHANGELOG.md"
 
 [project.scripts]
-sekha-proxy = "proxy:main"
+sekha-proxy = "sekha_proxy.proxy:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["."]
+packages = ["src/sekha_proxy"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = "test_*.py"
-addopts = "-v --tb=short --cov=. --cov-report=term-missing"
+addopts = "-v --tb=short --cov=src/sekha_proxy --cov-report=term-missing"
 
 [tool.coverage.run]
-source = ["."]
+source = ["src/sekha_proxy"]
 omit = ["tests/*", "scripts/*"]
 
 [tool.coverage.report]
