@@ -4,8 +4,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from config import Config, ControllerConfig, LLMConfig, MemoryConfig
-from proxy import SekhaProxy
+from sekha_proxy.config import Config, ControllerConfig, LLMConfig, MemoryConfig
+from sekha_proxy.proxy import SekhaProxy
 
 
 @pytest.fixture
