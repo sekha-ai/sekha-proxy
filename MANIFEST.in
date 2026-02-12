@@ -1,0 +1,34 @@
+# Include documentation files in the package
+include README.md
+include LICENSE
+include CHANGELOG.md
+include CHANGES_V2.0.md
+include CODE_OF_CONDUCT.md
+include CONTRIBUTING.md
+include TESTING.md
+
+# Include configuration examples
+include .env.example
+include docker-compose.yml
+include Dockerfile
+
+# Include static web files (dashboard)
+recursive-include static *.html *.css *.js *.json *.ico *.png *.svg
+
+# Include tests (optional, for development installations)
+recursive-include tests *.py
+
+# Include pytest configuration
+include pytest.ini
+
+# Exclude compiled Python files
+global-exclude __pycache__
+global-exclude *.py[cod]
+global-exclude *$py.class
+
+# Exclude caches and build artifacts
+global-exclude .pytest_cache
+global-exclude .coverage
+global-exclude htmlcov
+global-exclude .mypy_cache
+global-exclude .ruff_cache
