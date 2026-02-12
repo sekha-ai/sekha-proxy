@@ -7,8 +7,8 @@ import pytest
 from fastapi import HTTPException
 from httpx import HTTPError, HTTPStatusError, RequestError
 
-from config import Config, ControllerConfig, LLMConfig, MemoryConfig, ProxyConfig
-from proxy import SekhaProxy
+from sekha_proxy.config import Config, ControllerConfig, LLMConfig, MemoryConfig, ProxyConfig
+from sekha_proxy.proxy import SekhaProxy
 
 
 @pytest.fixture
@@ -158,8 +158,8 @@ async def test_controller_failure_continues(test_config: Config) -> None:
     }
     mock_completion_response = AsyncMock()
     mock_completion_response.status_code = 200
-    mock_completion_response.json = MagicMock(return_value=llm_response)
-    mock_completion_response.raise_for_status = MagicMock()
+    mock_completion_response.json = MagicMock(return_value=llm_response)  # Synchronous!
+    mock_completion_response.raise_for_status = MagicMock()  # Synchronous!
 
     async def bridge_post_side_effect(endpoint, **kwargs):
         if "/route" in endpoint:

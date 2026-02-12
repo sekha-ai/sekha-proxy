@@ -2,7 +2,7 @@
 
 import pytest
 
-from config import Config, ControllerConfig, LLMConfig, MemoryConfig
+from sekha_proxy.config import Config, ControllerConfig, LLMConfig, MemoryConfig
 
 
 def test_config_default_values() -> None:

@@ -1,9 +1,5 @@
 """Sekha Proxy - Intelligent LLM routing with automatic context injection"""
 
-__version__ = "0.2.0"
-__author__ = "Sekha AI"
-__email__ = "dev@sekha-ai.dev"
-
 import asyncio
 import logging
 import re
@@ -15,9 +11,9 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from httpx import AsyncClient, HTTPError
 
-from config import Config
-from context_injection import ContextInjector
-from health import HealthMonitor
+from sekha_proxy.config import Config
+from sekha_proxy.context_injection import ContextInjector
+from sekha_proxy.health import HealthMonitor
 
 # Configure logging
 logging.basicConfig(
@@ -500,7 +496,7 @@ if __name__ == "__main__":
     config = Config.from_env()
 
     uvicorn.run(
-        "proxy:app",
+        "sekha_proxy.proxy:app",
         host=config.proxy.host,
         port=config.proxy.port,
         reload=False,
